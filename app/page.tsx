@@ -16,7 +16,7 @@ export default function Page() {
   return <Hero />;
 }
 
-export function Hero() { 
+function Hero() { 
   const { scrollYProgress } = useScroll(); 
 
   const maskSize = useSpring( 
