@@ -6,6 +6,7 @@ import {
   useMotionTemplate, 
   useSpring, 
 } from "motion/react";
+import StickyNav from "@/components/sticky-nav";
 
 const springVars = { 
   stiffness: 120, 
@@ -13,7 +14,12 @@ const springVars = {
 }; 
 
 export default function Page() {
-  return <Hero />;
+  return (
+    <>
+      <StickyNav />
+      <Hero />
+    </>
+  );
 }
 
 function Hero() { 
