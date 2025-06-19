@@ -6,13 +6,6 @@ import Image from 'next/image'
 import { TextEffect } from '@/components/ui/text-effect'
 import { AnimatedGroup } from '@/components/ui/animated-group'
 import { HeroHeader } from './header'
-import LogoCloud from './logo-cloud'
-import Features from './features-12'
-import StatsSection from './stats'
-import Pricing from './pricing'
-import FAQsThree from './faqs-3'
-import FooterSection from './footer-section'
-import { LineShadowText } from './magicui/line-shadow-text'
 
 const transitionVariants = {
     item: {
@@ -199,12 +192,6 @@ export default function HeroSection() {
                         </AnimatedGroup>
                     </div>
                 </section>
-                <LogoCloud />
-                <Features />
-                <StatsSection />
-                <Pricing />
-                <FAQsThree />
-                <FooterSection />
             </main>
         </>
     )
