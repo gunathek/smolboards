@@ -78,7 +78,7 @@ export default function HeroSection() {
                         <div className="absolute inset-0 -z-10 size-full [background:radial-gradient(125%_125%_at_50%_100%,transparent_0%,var(--color-background)_75%)]"></div>
                         <div className="mx-auto max-w-7xl px-6">
                             <div className="text-center sm:mx-auto lg:mr-auto lg:mt-0">
-                                <AnimatedGroup variants={transitionVariants}>
+                                {/* <AnimatedGroup variants={transitionVariants}>
                                     <Link
                                         href="#link"
                                         className="hover:bg-background dark:hover:border-t-border bg-muted group mx-auto flex w-fit items-center gap-4 rounded-full border p-1 pl-4 shadow-md shadow-zinc-950/5 transition-colors duration-300 dark:border-t-white/5 dark:shadow-zinc-950">
@@ -96,14 +96,14 @@ export default function HeroSection() {
                                             </div>
                                         </div>
                                     </Link>
-                                </AnimatedGroup>
+                                </AnimatedGroup> */}
 
                                 <TextEffect
                                     preset="fade-in-blur"
                                     speedSegment={0.3}
                                     as="h1"
                                     className="mt-8 text-balance text-6xl md:text-7xl lg:mt-16 xl:text-[5.25rem]">
-                                     We hacked billboards so you can hack your growth
+                                    We learnt billboard ads so you dont have to
                                 </TextEffect>
 
                                 <TextEffect
@@ -113,7 +113,7 @@ export default function HeroSection() {
                                     delay={0.5}
                                     as="p"
                                     className="mx-auto mt-8 max-w-2xl text-balance text-lg">
-                                    Start your billboards ads in a few clicks, no ifs n buts, just clicks
+                                    Easiest way to buy billboard ads
                                 </TextEffect>
 
                                 <AnimatedGroup
@@ -136,12 +136,12 @@ export default function HeroSection() {
                                             asChild
                                             size="lg"
                                             className="rounded-xl px-5 text-base">
-                                            <Link href="#link">
-                                                <span className="text-nowrap">Post your ad</span>
+                                            <Link href="https://forms.fillout.com/t/oyu4JEGtYsus" target="_blank">
+                                                <span className="text-nowrap">Get Early Access</span>
                                             </Link>
                                         </Button>
                                     </div>
-                                    <Button
+                                    {/* <Button
                                         key={2}
                                         asChild
                                         size="lg"
@@ -150,7 +150,7 @@ export default function HeroSection() {
                                         <Link href="#link">
                                             <span className="text-nowrap">Request a demo</span>
                                         </Link>
-                                    </Button>
+                                    </Button> */}
                                 </AnimatedGroup>
                             </div>
                         </div>
@@ -175,14 +175,14 @@ export default function HeroSection() {
                                 <div className="inset-shadow-2xs ring-background dark:inset-shadow-white/20 bg-background relative mx-auto max-w-6xl overflow-hidden rounded-2xl border p-4 shadow-lg shadow-zinc-950/15 ring-1">
                                     <Image
                                         className="bg-background aspect-15/8 relative hidden rounded-2xl dark:block"
-                                        src="/mail2.png"
+                                        src="/peak_hero_bill.png"
                                         alt="app screen"
                                         width="2700"
                                         height="1440"
                                     />
                                     <Image
                                         className="z-2 border-border/25 aspect-15/8 relative rounded-2xl border dark:hidden"
-                                        src="/mail2-light.png"
+                                        src="/peak_hero_bill.png"
                                         alt="app screen"
                                         width="2700"
                                         height="1440"

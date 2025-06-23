@@ -7,10 +7,10 @@ import React from 'react'
 import { cn } from '@/lib/utils'
 
 const menuItems = [
-    { name: 'Features', href: '#link' },
-    { name: 'Solution', href: '#link' },
-    { name: 'Pricing', href: '#link' },
-    { name: 'About', href: '#link' },
+    { name: ' ', href: '#link' },
+    // { name: 'Solution', href: '#link' },
+    // { name: 'Pricing', href: '#link' },
+    // { name: 'About', href: '#link' },
 ]
 
 export const HeroHeader = () => {
@@ -90,7 +90,7 @@ export const HeroHeader = () => {
                                     asChild
                                     size="sm"
                                     className={cn(isScrolled && 'lg:hidden')}>
-                                    <Link href="#">
+                                    <Link href="https://forms.fillout.com/t/oyu4JEGtYsus" target="_blank">
                                         <span>Get Started</span>
                                     </Link>
                                 </Button>
@@ -98,7 +98,7 @@ export const HeroHeader = () => {
                                     asChild
                                     size="sm"
                                     className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
-                                    <Link href="#">
+                                    <Link href="https://forms.fillout.com/t/oyu4JEGtYsus" target="_blank">
                                         <span>Get Started</span>
                                     </Link>
                                 </Button>

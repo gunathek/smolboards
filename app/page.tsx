@@ -1,6 +1,6 @@
 import HeroSection from "@/components/hero-section";
 import LogoCloud from '@/components/logo-cloud'
-import Features from '@/components/features-12'
+import FeaturesSection from "@/components/features-8";
 import StatsSection from '@/components/stats'
 import Pricing from '@/components/pricing'
 import FAQsThree from '@/components/faqs-3'
@@ -14,22 +14,23 @@ export default function Home() {
     <>
       <AnimatedGradientBackground />
       <HeroSection />
-      <LogoCloud />
-      <Features />
+      {/* <LogoCloud /> */}
       <StatsSection />
-      <Comparator />
-      <Pricing />
-      <FAQsThree />
+      <FeaturesSection />
+      {/* <Comparator /> */}
+      {/* <Pricing /> */}
+      {/* <FAQsThree /> */}
       {/* <FooterSection /> */}
       <Footer leftLinks={[
-        { href: "/terms", label: "Terms & policies" },
-        { href: "/privacy-policy", label: "Privacy policy" },]}
+        // { href: "/terms", label: "Terms & policies" },
+        // { href: "/privacy-policy", label: "Privacy policy" },
+      ]}
               rightLinks={[
                 // { href: "/", label: "Careers" },
-                { href: "/", label: "About" },
-                { href: "/", label: "Help Center" },
-                { href: "https://x.com/gunathek", label: "Twitter" },
-                { href: "https://www.instagram.com/", label: "Instagram" },
+                // { href: "/", label: "About" },
+                // { href: "/", label: "Help Center" },
+                // { href: "https://x.com/gunathek", label: "Twitter" },
+                // { href: "https://www.instagram.com/", label: "Instagram" },
                 // { href: "https://github.com/", label: "GitHub" }
               ]}
               copyrightText="Smolboards 2025. All Rights Reserved"
