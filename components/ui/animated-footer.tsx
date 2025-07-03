@@ -122,7 +122,7 @@ const Footer: React.FC<FooterProps> = ({
               onClick={() => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="text-sm hover:underline inline-flex items-center">
+              className="text-sm hover:underline inline-flex items-center relative z-20">
               Back to top
             </button>
           </div>
