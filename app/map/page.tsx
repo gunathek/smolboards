@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { BillboardSidebar, type BillboardFilters } from "@/components/billboard-sidebar"
 import { BookingDialog } from "@/components/booking-dialog"
 import { supabase, type Billboard, initializeBillboards, createSampleBillboards } from "@/lib/supabase"
+import { MapStats } from "@/components/map-stats"
 
 // Fallback billboard data in case Supabase is not available
 const fallbackBillboards: Billboard[] = [
@@ -125,7 +126,7 @@ export default function KoramangalaMap() {
     category: "all",
     status: "all",
     minRate: 0,
-    maxRate: 300,
+    maxRate: 1000,
     showOnlyVisible: false,
   })
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -138,6 +139,11 @@ export default function KoramangalaMap() {
         if (billboard) {
           setBookingBillboard(billboard)
           setBookingDialogOpen(true)
+        }
+      } else if (event.data.type === "selectBillboard" && event.data.billboardId) {
+        const billboard = billboards.find((b) => b.id === event.data.billboardId)
+        if (billboard) {
+          handleBillboardSelect(billboard)
         }
       }
     }
@@ -378,7 +384,7 @@ export default function KoramangalaMap() {
         className={`absolute top-4 z-[1000] transition-all duration-300 ${
           error || usingFallbackData ? "top-20" : "top-4"
         } ${sidebarOpen ? "left-[21rem]" : "left-[21rem]"} md:left-[21rem]`}
-      > 
+      >
         <Button
           onClick={handleBack}
           size="icon"
@@ -458,6 +464,11 @@ export default function KoramangalaMap() {
           <Minus className="h-4 w-4" />
           <span className="sr-only">Zoom out</span>
         </Button>
+      </div>
+
+      {/* Floating Map Stats - Bottom Right */}
+      <div className="absolute bottom-4 right-4 z-[1000]">
+        <MapStats visibleCount={visibleBillboards.length} totalCount={billboards.length} />
       </div>
 
       {/* Click overlay to close search results */}

@@ -107,7 +107,7 @@ export default function MapComponent({
 
         // cluster group
         markerClusterGroupRef.current = L.markerClusterGroup({
-          maxClusterRadius: 45,
+          maxClusterRadius: 20,
           showCoverageOnHover: false,
           spiderfyOnMaxZoom: true,
         })
@@ -147,6 +147,10 @@ export default function MapComponent({
       const marker = L.marker([b.latitude, b.longitude], {
         icon: createBillboardIcon(b.status, selectedBillboard?.id === b.id),
       }).bindPopup(popupContent(b))
+      marker.on("click", () => {
+        // Send message to parent to select this billboard
+        window.parent.postMessage({ type: "selectBillboard", billboardId: b.id }, "*")
+      })
       markerClusterGroupRef.current.addLayer(marker)
     })
     markerClusterGroupRef.current.refreshClusters()
@@ -154,41 +158,110 @@ export default function MapComponent({
 
   // build HTML once without stray quotes / back-slashes
   const popupContent = (b: Billboard) => `
-    <div style="padding:12px;min-width:250px;max-width:300px;">
-      <h3 style="font-size:16px;font-weight:600;margin-bottom:8px;color:#111">${b.name}</h3>
-      <div style="font-size:13px;line-height:1.4;color:#444">
-        <strong>Dimensions:</strong> ${b.dimensions}<br/>
-        <strong>Category:</strong> ${b.category}<br/>
-        <strong>Daily:</strong> $${b.daily_rate} &nbsp;
-        <strong>Monthly:</strong> $${b.monthly_rate}<br/>
-        <strong>Status:</strong>
-        <span style="
-          padding:2px 6px;
-          border-radius:999px;
-          background:${b.status === "available" ? "#D1FAE5" : b.status === "occupied" ? "#FECACA" : "#FEF3C7"};
-          color:${b.status === "available" ? "#065F46" : b.status === "occupied" ? "#7F1D1D" : "#92400E"};
-          font-weight:500;
-          text-transform:capitalize;"
-        >${b.status}</span><br/>
-        <strong>Address:</strong><br/>${b.address}
-      </div>
-      ${
-        b.status === "available"
-          ? `<button style="
-                margin-top:10px;
-                width:100%;
-                background:#16a34a;
-                color:white;
-                border:none;
-                padding:8px;
-                border-radius:6px;
-                cursor:pointer;"
-              onclick="window.parent.postMessage({type:'openBooking',billboardId:'${b.id}'},'*')"
-            >Book This Billboard</button>`
-          : ""
-      }
+  <div style="
+    padding: 16px;
+    min-width: 280px;
+    max-width: 320px;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  ">
+    <div style="margin-bottom: 12px;">
+      <h3 style="
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0 0 8px 0;
+        color: #111827;
+        line-height: 1.3;
+      ">${b.name}</h3>
+      <div style="
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: capitalize;
+        background: ${b.status === "available" ? "#D1FAE5" : b.status === "occupied" ? "#FECACA" : "#FEF3C7"};
+        color: ${b.status === "available" ? "#065F46" : b.status === "occupied" ? "#7F1D1D" : "#92400E"};
+      ">${b.status}</div>
     </div>
-  `
+    
+    <div style="
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #374151;
+    ">
+      <div>
+        <div style="font-weight: 600; color: #6B7280; font-size: 12px; margin-bottom: 2px;">DIMENSIONS</div>
+        <div style="font-weight: 500;">${b.dimensions}</div>
+      </div>
+      <div>
+        <div style="font-weight: 600; color: #6B7280; font-size: 12px; margin-bottom: 2px;">CATEGORY</div>
+        <div style="font-weight: 500;">${b.category}</div>
+      </div>
+    </div>
+    
+    <div style="
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #374151;
+    ">
+      <div>
+        <div style="font-weight: 600; color: #6B7280; font-size: 12px; margin-bottom: 2px;">DAILY RATE</div>
+        <div style="font-weight: 700; color: #059669;">$${b.daily_rate}</div>
+      </div>
+      <div>
+        <div style="font-weight: 600; color: #6B7280; font-size: 12px; margin-bottom: 2px;">MONTHLY RATE</div>
+        <div style="font-weight: 700; color: #059669;">$${b.monthly_rate}</div>
+      </div>
+    </div>
+    
+    <div style="margin-bottom: 16px;">
+      <div style="font-weight: 600; color: #6B7280; font-size: 12px; margin-bottom: 4px;">ADDRESS</div>
+      <div style="font-size: 13px; color: #4B5563; line-height: 1.4;">${b.address}</div>
+    </div>
+    
+    ${
+      b.status === "available"
+        ? `<button 
+            onclick="window.parent.postMessage({type:'openBooking',billboardId:'${b.id}'},'*')"
+            style="
+              width: 100%;
+              background: linear-gradient(135deg, #059669 0%, #047857 100%);
+              color: white;
+              border: none;
+              padding: 12px 16px;
+              border-radius: 8px;
+              font-weight: 600;
+              font-size: 14px;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
+            "
+            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(5, 150, 105, 0.3)'"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(5, 150, 105, 0.2)'"
+          >📅 Book This Billboard</button>`
+        : `<div style="
+            width: 100%;
+            background: #F3F4F6;
+            color: #6B7280;
+            border: 1px solid #E5E7EB;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            text-align: center;
+          ">${b.status === "occupied" ? "🚫 Currently Occupied" : "🔧 Under Maintenance"}</div>`
+    }
+  </div>
+`
 
   // refresh markers whenever billboards / filters / selection change OR once map is ready
   useEffect(refreshMarkers, [billboards, filters, selectedBillboard, mapReady])

@@ -71,8 +71,17 @@ export async function initializeBillboards() {
   }
 }
 
+// Type for the response from getBillboardBookings
+type GetBillboardBookingsResponse = 
+  | { success: true; data: Booking[] }
+  | { success: false; error: string; data?: never }
+
 // Function to get bookings for a specific billboard and date range
-export async function getBillboardBookings(billboardId: string, startDate: string, endDate: string) {
+export async function getBillboardBookings(
+  billboardId: string, 
+  startDate: string, 
+  endDate: string
+): Promise<GetBillboardBookingsResponse> {
   if (!supabase) {
     return { success: true, data: [] } // Return empty data instead of error
   }
