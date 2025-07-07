@@ -129,3 +129,45 @@
     @apply bg-background text-foreground;
   }
 }
+/* Dark theme select dropdown styles */
+[data-radix-select-content] {
+  background-color: rgb(17, 24, 39) !important;
+  border-color: rgb(55, 65, 81) !important;
+  color: white !important;
+}
+
+[data-radix-select-item] {
+  color: white !important;
+}
+
+[data-radix-select-item]:hover {
+  background-color: rgb(31, 41, 55) !important;
+}
+
+[data-radix-select-item][data-highlighted] {
+  background-color: rgb(31, 41, 55) !important;
+}
+
+/* Slider customization for dark theme */
+.dark-slider [data-radix-slider-track] {
+  background-color: rgb(55, 65, 81);
+}
+
+.dark-slider [data-radix-slider-range] {
+  background-color: white;
+}
+
+.dark-slider [data-radix-slider-thumb] {
+  background-color: white;
+  border-color: rgb(55, 65, 81);
+}
+
+/* Checkbox dark theme */
+[data-radix-checkbox-root] {
+  border-color: rgb(55, 65, 81) !important;
+}
+
+[data-radix-checkbox-root][data-state="checked"] {
+  background-color: white !important;
+  border-color: white !important;
+}
