@@ -3,7 +3,8 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Filter, X, Ruler, DollarSign, MapPin, Eye, Calendar, RotateCcw } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ChevronDown, Filter, X, Ruler, DollarSign, MapPin, Eye, Calendar, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -44,7 +45,7 @@ export function BillboardSidebar({
     category: "all",
     status: "all",
     minRate: 0,
-    maxRate: 300,
+    maxRate: 1000,
     showOnlyVisible: true,
   })
 
@@ -72,6 +73,19 @@ export function BillboardSidebar({
     onFilterChange(filters)
   }, [filters, billboards, visibleBillboards, onFilterChange])
 
+  // Auto-scroll to selected billboard
+  useEffect(() => {
+    if (selectedBillboard) {
+      const billboardElement = document.getElementById(`billboard-${selectedBillboard.id}`)
+      if (billboardElement) {
+        billboardElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        })
+      }
+    }
+  }, [selectedBillboard])
+
   const updateFilter = (key: keyof BillboardFilters, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
   }
@@ -81,7 +95,7 @@ export function BillboardSidebar({
       category: "all",
       status: "all",
       minRate: 0,
-      maxRate: 300,
+      maxRate: 1000,
       showOnlyVisible: true,
     })
   }
@@ -92,7 +106,7 @@ export function BillboardSidebar({
       filters.category !== "all" ||
       filters.status !== "all" ||
       filters.minRate !== 0 ||
-      filters.maxRate !== 300 ||
+      filters.maxRate !== 1000 ||
       !filters.showOnlyVisible
     )
   }
@@ -152,12 +166,6 @@ export function BillboardSidebar({
             </Button>
           </div>
           <div className="text-sm text-gray-400 mt-1 space-y-1">
-            <div className="flex items-center gap-2">
-              <span>
-                Showing {filteredBillboards.length} of{" "}
-                {filters.showOnlyVisible ? visibleBillboards.length : billboards.length} boards
-              </span>
-            </div>
             {filters.showOnlyVisible && (
               <div className="flex items-center gap-1 text-xs text-white">
                 <Eye className="h-3 w-3" />
@@ -167,123 +175,121 @@ export function BillboardSidebar({
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="p-4 border-b border-gray-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-white">
-              <Filter className="h-4 w-4" />
-              <span className="font-medium">FILTERS</span>
-            </div>
-            {hasActiveFilters() && (
-              <Button
-                onClick={clearAllFilters}
-                size="sm"
-                variant="outline"
-                className="h-7 px-2 text-xs bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
-              >
-                <RotateCcw className="h-3 w-3 mr-1" />
-                Clear
-              </Button>
-            )}
-          </div>
-
-          {/* Show only visible */}
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="visible-only"
-              checked={filters.showOnlyVisible}
-              onCheckedChange={(checked) => updateFilter("showOnlyVisible", checked)}
-              className="border-gray-600 data-[state=checked]:bg-white data-[state=checked]:text-black"
-            />
-            <label htmlFor="visible-only" className="text-sm text-gray-300 flex items-center gap-2 cursor-pointer">
-              <Eye className="h-3 w-3" />
-              Show only visible on map
-            </label>
-          </div>
-
-          {/* View Statistics */}
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 space-y-2">
-            <div className="text-xs text-gray-400 font-medium">VIEW STATS</div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="text-center">
-                <div className="text-white font-bold text-lg">{visibleBillboards.length}</div>
-                <div className="text-gray-400">In View</div>
-              </div>
-              <div className="text-center">
-                <div className="text-gray-300 font-bold text-lg">{billboards.length}</div>
-                <div className="text-gray-400">Total</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Category Filter */}
-          <div>
-            <label className="text-sm text-gray-400 mb-2 block">Category</label>
-            <Select value={filters.category} onValueChange={(value) => updateFilter("category", value)}>
-              <SelectTrigger className="bg-gray-900 border-gray-700 text-white hover:bg-gray-800">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                <SelectItem value="all" className="hover:bg-gray-800 focus:bg-gray-800">
-                  All Categories
-                </SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category} className="hover:bg-gray-800 focus:bg-gray-800">
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <label className="text-sm text-gray-400 mb-2 block">Status</label>
-            <Select value={filters.status} onValueChange={(value) => updateFilter("status", value)}>
-              <SelectTrigger className="bg-gray-900 border-gray-700 text-white hover:bg-gray-800">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                <SelectItem value="all" className="hover:bg-gray-800 focus:bg-gray-800">
-                  All Status
-                </SelectItem>
-                {statuses.map((status) => (
-                  <SelectItem key={status} value={status} className="hover:bg-gray-800 focus:bg-gray-800">
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Rate Filter */}
-          <div>
-            <label className="text-sm text-gray-400 mb-2 block">
-              Daily Rate: ${filters.minRate} - ${filters.maxRate}
-            </label>
-            <div className="px-2">
-              <Slider
-                value={[filters.minRate, filters.maxRate]}
-                onValueChange={([min, max]) => {
-                  updateFilter("minRate", min)
-                  updateFilter("maxRate", max)
-                }}
-                max={300}
-                min={0}
-                step={10}
-                className="w-full"
+        {/* Moved "Show only visible" filter here */}
+        <div className="p-4 border-b border-gray-800">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="visible-only"
+                checked={filters.showOnlyVisible}
+                onCheckedChange={(checked) => updateFilter("showOnlyVisible", checked)}
+                className="border-gray-600 data-[state=checked]:bg-white data-[state=checked]:text-black"
               />
+              <label htmlFor="visible-only" className="text-sm text-gray-300 flex items-center gap-2 cursor-pointer">
+                <Eye className="h-3 w-3" />
+                Show only visible on map
+              </label>
             </div>
           </div>
-        </div>
+          
+        {/* Filters */}
+        <Collapsible className="group/collapsible">
+          <div className="p-4 border-b border-gray-800">
+            <div className="flex items-center justify-between">
+              <CollapsibleTrigger className="rounded-lg flex-1 text-left" asChild>
+                <Button variant="ghost" className="w-full justify-between text-white hover:bg-gray-800">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    <span className="font-medium">FILTERS</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
+                </Button>
+              </CollapsibleTrigger>
+              {hasActiveFilters() && (
+                <Button
+                  onClick={clearAllFilters}
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-xs bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white ml-2"
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+          <CollapsibleContent className="p-4 space-y-4 border-b border-gray-800">
+            {/* View Statistics */}
+
+            {/* Category Filter */}
+            <div>
+              <label className="text-sm text-gray-400 mb-2 block">Category</label>
+              <Select value={filters.category} onValueChange={(value) => updateFilter("category", value)}>
+                <SelectTrigger className="bg-gray-900 border-gray-700 text-white hover:bg-gray-800">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-700 text-white">
+                  <SelectItem value="all" className="hover:bg-gray-800 focus:bg-gray-800">
+                    All Categories
+                  </SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category} className="hover:bg-gray-800 focus:bg-gray-800">
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <label className="text-sm text-gray-400 mb-2 block">Status</label>
+              <Select value={filters.status} onValueChange={(value) => updateFilter("status", value)}>
+                <SelectTrigger className="bg-gray-900 border-gray-700 text-white hover:bg-gray-800">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-700 text-white">
+                  <SelectItem value="all" className="hover:bg-gray-800 focus:bg-gray-800">
+                    All Status
+                  </SelectItem>
+                  {statuses.map((status) => (
+                    <SelectItem key={status} value={status} className="hover:bg-gray-800 focus:bg-gray-800">
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Rate Filter */}
+            <div>
+              <label className="text-sm text-gray-400 mb-2 block">
+                Daily Rate: ${filters.minRate} - ${filters.maxRate}
+              </label>
+              <div className="px-2">
+                <Slider
+                  value={[filters.minRate, filters.maxRate]}
+                  onValueChange={([min, max]) => {
+                    updateFilter("minRate", min)
+                    updateFilter("maxRate", max)
+                  }}
+                  max={1000}
+                  min={0}
+                  step={10}
+                  className="w-full"
+                />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Billboard List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {filteredBillboards.map((billboard) => (
             <Card
               key={billboard.id}
+              id={`billboard-${billboard.id}`}
               className={`bg-gray-900 border-gray-800 cursor-pointer transition-all hover:bg-gray-800 ${
-                selectedBillboard?.id === billboard.id ? "ring-2 ring-white" : ""
+                selectedBillboard?.id === billboard.id ? "ring-2 ring-white bg-gray-800" : ""
               }`}
               onClick={(e) => handleBillboardClick(billboard, e)}
             >
