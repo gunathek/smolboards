@@ -15,16 +15,9 @@ import {
   Zap,
   CalendarDays,
   ChevronDown,
-  ChevronRight,
-  User,
-  Mail,
-  Phone,
-  MessageSquare,
-  CreditCard,
-  MapPin,
-  CheckCircle,
+  Check,
   ArrowLeft,
-  Sparkles,
+  ArrowRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -59,108 +52,6 @@ interface DateTimeSlots {
 
 type CampaignType = "single-day" | "multi-day"
 
-// Progress indicator component
-const ProgressIndicator = ({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) => {
-  return (
-    <div className="flex items-center justify-center space-x-2 mb-8">
-      {Array.from({ length: totalSteps }, (_, index) => (
-        <div key={index} className="flex items-center">
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
-              index + 1 <= currentStep
-                ? "bg-green-600 text-white shadow-lg"
-                : index + 1 === currentStep + 1
-                ? "bg-blue-100 text-blue-600 border-2 border-blue-600"
-                : "bg-gray-200 text-gray-500"
-            }`}
-          >
-            {index + 1 <= currentStep ? (
-              <CheckCircle className="h-4 w-4" />
-            ) : (
-              index + 1
-            )}
-          </div>
-          {index < totalSteps - 1 && (
-            <div
-              className={`w-12 h-0.5 mx-2 transition-all duration-300 ${
-                index + 1 < currentStep ? "bg-green-600" : "bg-gray-200"
-              }`}
-            />
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// Step header component
-const StepHeader = ({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon: any }) => {
-  return (
-    <div className="text-center mb-8">
-      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-        <Icon className="h-8 w-8 text-white" />
-      </div>
-      <h3 className="text-2xl font-bold text-gray-900 mb-2">{title}</h3>
-      <p className="text-gray-600 max-w-md mx-auto">{subtitle}</p>
-    </div>
-  )
-}
-
-// Enhanced campaign type card
-const CampaignTypeCard = ({ 
-  type, 
-  title, 
-  description, 
-  features, 
-  icon: Icon, 
-  isSelected, 
-  onSelect,
-  gradient 
-}: {
-  type: CampaignType
-  title: string
-  description: string
-  features: string[]
-  icon: any
-  isSelected: boolean
-  onSelect: (type: CampaignType) => void
-  gradient: string
-}) => {
-  return (
-    <Card 
-      className={`cursor-pointer transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 ${
-        isSelected 
-          ? "ring-2 ring-blue-500 shadow-xl bg-gradient-to-br from-blue-50 to-purple-50" 
-          : "hover:shadow-lg border-gray-200"
-      }`}
-      onClick={() => onSelect(type)}
-    >
-      <CardContent className="p-6">
-        <div className="flex items-start space-x-4">
-          <div className={`w-12 h-12 ${gradient} rounded-xl flex items-center justify-center shadow-lg`}>
-            <Icon className="h-6 w-6 text-white" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-lg font-semibold text-gray-900">{title}</h4>
-              <RadioGroupItem value={type} id={type} className="mt-1" />
-            </div>
-            <p className="text-gray-600 text-sm mb-4">{description}</p>
-            <ul className="space-y-2">
-              {features.map((feature, index) => (
-                <li key={index} className="flex items-center text-sm text-gray-700">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 export function BookingDialog({ billboard, children }: BookingDialogProps) {
   const [open, setOpen] = useState(false)
   const [campaignType, setCampaignType] = useState<CampaignType | null>(null)
@@ -181,17 +72,6 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
   const [bookingSuccess, setBookingSuccess] = useState(false)
   const [bookingSystemAvailable, setBookingSystemAvailable] = useState(true)
   const [templateSlots, setTemplateSlots] = useState<number[]>([])
-
-  // Get current step number for progress indicator
-  const getCurrentStepNumber = () => {
-    switch (bookingStep) {
-      case "campaign-type": return 1
-      case "calendar": return 2
-      case "details": return 3
-      case "confirmation": return 4
-      default: return 1
-    }
-  }
 
   // Check if booking system is available
   useEffect(() => {
@@ -485,6 +365,69 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
     }
   }
 
+  // Progress indicator component
+  const ProgressIndicator = () => {
+    const steps = [
+      { key: "campaign-type", label: "Campaign Type", icon: Zap },
+      { key: "calendar", label: "Date & Time", icon: Calendar },
+      { key: "details", label: "Details", icon: Clock },
+      { key: "confirmation", label: "Confirmation", icon: Check },
+    ]
+
+    const currentStepIndex = steps.findIndex(step => step.key === bookingStep)
+
+    return (
+      <div className="flex items-center justify-center mb-8 px-4">
+        <div className="flex items-center space-x-2 md:space-x-4">
+          {steps.map((step, index) => {
+            const Icon = step.icon
+            const isCompleted = index < currentStepIndex
+            const isCurrent = index === currentStepIndex
+            const isUpcoming = index > currentStepIndex
+
+            return (
+              <div key={step.key} className="flex items-center">
+                <div className={`
+                  relative flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300
+                  ${isCompleted 
+                    ? 'bg-green-500 border-green-500 text-white' 
+                    : isCurrent 
+                      ? 'bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-500/25' 
+                      : 'bg-gray-100 border-gray-300 text-gray-400 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-500'
+                  }
+                `}>
+                  {isCompleted ? (
+                    <Check className="w-5 h-5" />
+                  ) : (
+                    <Icon className="w-5 h-5" />
+                  )}
+                  {isCurrent && (
+                    <div className="absolute inset-0 rounded-full bg-blue-500 animate-ping opacity-25" />
+                  )}
+                </div>
+                <div className="ml-2 hidden md:block">
+                  <div className={`text-sm font-medium ${
+                    isCompleted || isCurrent 
+                      ? 'text-gray-900 dark:text-white' 
+                      : 'text-gray-500 dark:text-gray-400'
+                  }`}>
+                    {step.label}
+                  </div>
+                </div>
+                {index < steps.length - 1 && (
+                  <div className={`
+                    w-8 md:w-12 h-0.5 mx-2 md:mx-4 transition-colors duration-300
+                    ${isCompleted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}
+                  `} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   // Render single-day interface
   const renderSingleDayInterface = () => {
     const selectedDate = selectedDates[0]
@@ -495,25 +438,30 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Calendar Section */}
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Calendar className="h-5 w-5 text-blue-600 mr-2" />
-              Select Your Date
-            </h4>
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Select Date</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">Choose your campaign date</p>
+              </div>
+            </div>
             <CalendarComponent
               mode="single"
               selected={selectedDate}
               onSelect={handleDateSelect}
               disabled={(date) => date < new Date() || date > addDays(new Date(), 90)}
-              className="rounded-lg border-0 bg-white shadow-sm"
+              className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
             />
             {selectedDate && (
-              <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200 shadow-sm">
-                <div className="flex items-center gap-2 text-blue-900">
-                  <CheckCircle className="h-4 w-4 text-blue-600" />
-                  <span className="font-medium">Selected Date:</span>
+              <div className="mt-4 p-4 bg-blue-100 dark:bg-blue-900/50 rounded-lg border border-blue-200 dark:border-blue-700">
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <span className="font-medium text-blue-900 dark:text-blue-100">Selected Date:</span>
                 </div>
-                <div className="mt-1 text-sm text-blue-800 font-medium">
+                <div className="mt-1 text-sm text-blue-800 dark:text-blue-200 font-medium">
                   {format(selectedDate, "EEEE, MMMM dd, yyyy")}
                 </div>
               </div>
@@ -523,32 +471,37 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
 
         {/* Time Slots Section */}
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Clock className="h-5 w-5 text-purple-600 mr-2" />
-              Available Time Slots
-            </h4>
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/50 p-6 rounded-xl border border-purple-200 dark:border-purple-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                <Clock className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Available Time Slots</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">8 AM - 10 PM</p>
+              </div>
+            </div>
 
             {!selectedDate ? (
-              <div className="text-center py-12 text-gray-500">
-                <Clock className="h-12 w-12 mx-auto mb-4 opacity-30" />
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p className="text-lg font-medium">Select a date first</p>
-                <p className="text-sm">Choose your preferred date to view available time slots</p>
+                <p className="text-sm">Choose a date to view available time slots</p>
               </div>
             ) : loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                <p className="text-gray-500 font-medium">Loading availability...</p>
+                <p className="text-gray-600 dark:text-gray-300">Loading availability...</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+              <>
+                <div className="flex items-center justify-between mb-6">
                   <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => selectedDate && handleSelectAllForDate(selectedDate)}
-                      className="text-xs bg-white hover:bg-purple-50 border-purple-200"
+                      className="text-xs border-purple-200 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/50"
                     >
                       {dateSlots?.availableSlots
                         .filter((s) => !s.isBooked)
@@ -569,20 +522,20 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                         size="sm"
                         variant="outline"
                         onClick={handleClearAllSlots}
-                        className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 bg-white border-red-200"
+                        className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/50 border-red-200 dark:border-red-700"
                       >
                         <Trash2 className="h-3 w-3 mr-1" />
-                        Clear
+                        Clear All
                       </Button>
                     )}
                   </div>
                   {dateSlots && dateSlots.selectedSlots.length > 0 && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-800 border-purple-200">
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
                       {dateSlots.selectedSlots.length} selected
                     </Badge>
                   )}
                 </div>
-                <div className="grid grid-cols-3 gap-2 max-h-80 overflow-y-auto bg-white rounded-lg p-4 border border-purple-100">
+                <div className="grid grid-cols-3 gap-3 max-h-80 overflow-y-auto">
                   {dateSlots?.availableSlots.map((slot) => (
                     <Button
                       key={slot.hour}
@@ -598,17 +551,17 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                       onClick={() => selectedDate && handleTimeSlotToggle(selectedDate, slot.hour)}
                       className={`text-xs transition-all duration-200 ${
                         slot.isBooked
-                          ? "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400"
+                          ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400"
                           : dateSlots.selectedSlots.includes(slot.hour)
-                            ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-md transform scale-105"
-                            : "hover:bg-purple-50 hover:border-purple-300 hover:shadow-sm"
+                            ? "bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/25"
+                            : "hover:bg-purple-50 dark:hover:bg-purple-900/50 border-purple-200 dark:border-purple-700"
                       }`}
                     >
                       {formatTimeSlot(slot.hour)}
                     </Button>
                   ))}
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -620,28 +573,28 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
   const renderMultiDayInterface = () => (
     <div className="space-y-8">
       {/* Global Counter and Template Controls */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/50 dark:to-purple-950/50 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-900">{getTotalSelectedSlots()}</div>
-              <div className="text-sm text-blue-600">Total Slots</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{getTotalSelectedSlots()}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Total Slots</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-900">{selectedDates.length}</div>
-              <div className="text-sm text-purple-600">Selected Dates</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{selectedDates.length}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Selected Dates</div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {getTotalSelectedSlots() > 0 && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleClearAllSlots}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 bg-white"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/50 border-red-200 dark:border-red-700"
               >
                 <Trash2 className="h-3 w-3 mr-1" />
-                Clear All
+                Clear All Slots
               </Button>
             )}
             {selectedDates.length > 1 && (
@@ -657,19 +610,18 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                   disabled={
                     !currentViewDate || !dateTimeSlots[format(currentViewDate, "yyyy-MM-dd")]?.selectedSlots.length
                   }
-                  className="bg-white hover:bg-blue-50 border-blue-200"
+                  className="border-blue-200 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/50"
                 >
                   <Copy className="h-3 w-3 mr-1" />
-                  Copy Slots
+                  Copy Current Slots
                 </Button>
                 <Button 
                   size="sm" 
                   onClick={applyTemplateToSelectedDates} 
                   disabled={templateSlots.length === 0}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
                 >
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  Apply to All ({templateSlots.length})
+                  Apply to All Dates ({templateSlots.length} slots)
                 </Button>
               </>
             )}
@@ -680,11 +632,16 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Calendar Section */}
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <CalendarDays className="h-5 w-5 text-green-600 mr-2" />
-              Select Multiple Dates
-            </h4>
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Select Dates</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">Choose multiple dates</p>
+              </div>
+            </div>
             <CalendarComponent
               mode="multiple"
               selected={selectedDates}
@@ -703,29 +660,34 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                 }
               }}
               disabled={(date) => date < new Date() || date > addDays(new Date(), 90)}
-              className="rounded-lg border-0 bg-white shadow-sm"
+              className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
             />
-            <p className="text-xs text-gray-500 mt-3 bg-white p-2 rounded border border-green-100">
-              💡 Click dates to select/deselect multiple dates for your campaign
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+              Click dates to select/deselect. You can select multiple dates for your campaign.
             </p>
           </div>
         </div>
 
         {/* Selected Dates Display Column */}
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl p-6 border border-orange-100">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Calendar className="h-5 w-5 text-orange-600 mr-2" />
-              Selected Dates ({selectedDates.length})
-            </h4>
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 p-6 rounded-xl border border-green-200 dark:border-green-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                <CalendarDays className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Selected Dates</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">({selectedDates.length})</p>
+              </div>
+            </div>
             {selectedDates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p className="text-sm font-medium">No dates selected</p>
-                <p className="text-xs text-gray-400 mt-1">Choose dates from the calendar</p>
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <CalendarDays className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No dates selected</p>
+                <p className="text-sm">Select dates from the calendar</p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
+              <div className="space-y-3 max-h-96 overflow-y-auto">
                 {selectedDates
                   .sort((a, b) => a.getTime() - b.getTime())
                   .map((date) => {
@@ -739,27 +701,29 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                         key={dateString}
                         className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
                           isCurrentView 
-                            ? "ring-2 ring-orange-400 bg-gradient-to-r from-orange-50 to-yellow-50 shadow-md" 
-                            : "hover:bg-orange-50 bg-white"
+                            ? "ring-2 ring-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg shadow-green-500/25" 
+                            : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
                         }`}
                         onClick={() => setCurrentViewDate(date)}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div>
-                              <div className="font-medium text-sm text-gray-900">
+                              <div className="font-medium text-sm text-gray-900 dark:text-white">
                                 {format(date, "MMM dd, yyyy")}
                               </div>
-                              <div className="text-xs text-gray-500">{format(date, "EEEE")}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {format(date, "EEEE")}
+                              </div>
                             </div>
                             <div className="flex items-center gap-2">
                               {selectedCount > 0 && (
-                                <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 border-green-200">
+                                <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                   {selectedCount} slots
                                 </Badge>
                               )}
                               {isCurrentView && (
-                                <Badge className="text-xs bg-orange-500 text-white">
+                                <Badge variant="default" className="text-xs bg-green-600 text-white">
                                   Viewing
                                 </Badge>
                               )}
@@ -776,37 +740,46 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
 
         {/* Time Slots Section */}
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Clock className="h-5 w-5 text-purple-600 mr-2" />
-              Time Slots
-            </h4>
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/50 p-6 rounded-xl border border-purple-200 dark:border-purple-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                <Clock className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Time Slots</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">8 AM - 10 PM</p>
+              </div>
+            </div>
 
             {selectedDates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Clock className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p className="text-sm font-medium">Select dates first</p>
-                <p className="text-xs text-gray-400 mt-1">Choose dates to view time slots</p>
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Select dates first</p>
+                <p className="text-sm">Choose dates to view available time slots</p>
               </div>
             ) : !currentViewDate ? (
-              <div className="text-center py-8 text-gray-500">
-                <Clock className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p className="text-sm font-medium">Click on a date</p>
-                <p className="text-xs text-gray-400 mt-1">Select a date to view its time slots</p>
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Click on a selected date</p>
+                <p className="text-sm">View its time slots</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="bg-white rounded-lg p-4 border border-purple-100">
-                  <div className="flex items-center justify-between mb-3">
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <h5 className="font-medium text-gray-900">{format(currentViewDate, "EEEE, MMM dd")}</h5>
-                      <p className="text-xs text-gray-500">Click slots to select/deselect</p>
+                      <h4 className="font-medium text-gray-900 dark:text-white">
+                        {format(currentViewDate, "EEEE, MMM dd, yyyy")}
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Click time slots to select/deselect
+                      </p>
                     </div>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleSelectAllForDate(currentViewDate)}
-                      className="text-xs bg-white hover:bg-purple-50 border-purple-200"
+                      className="text-xs border-purple-200 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/50"
                     >
                       {(() => {
                         const dateString = format(currentViewDate, "yyyy-MM-dd")
@@ -827,50 +800,50 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                       })()}
                     </Button>
                   </div>
+                </div>
 
-                  {(() => {
-                    const dateString = format(currentViewDate, "yyyy-MM-dd")
-                    const dateSlots = dateTimeSlots[dateString]
+                {(() => {
+                  const dateString = format(currentViewDate, "yyyy-MM-dd")
+                  const dateSlots = dateTimeSlots[dateString]
 
-                    if (loading && !dateSlots) {
-                      return (
-                        <div className="text-center py-8">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
-                          <p className="text-gray-500 text-sm">Loading...</p>
-                        </div>
-                      )
-                    }
-
+                  if (loading && !dateSlots) {
                     return (
-                      <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                        {dateSlots?.availableSlots.map((slot) => (
-                          <Button
-                            key={slot.hour}
-                            variant={
-                              dateSlots.selectedSlots.includes(slot.hour)
-                                ? "default"
-                                : slot.isBooked
-                                  ? "secondary"
-                                  : "outline"
-                            }
-                            size="sm"
-                            disabled={slot.isBooked}
-                            onClick={() => handleTimeSlotToggle(currentViewDate, slot.hour)}
-                            className={`text-xs transition-all duration-200 ${
-                              slot.isBooked
-                                ? "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400"
-                                : dateSlots.selectedSlots.includes(slot.hour)
-                                  ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-md"
-                                  : "hover:bg-purple-50 hover:border-purple-300"
-                            }`}
-                          >
-                            {formatTimeSlot(slot.hour)}
-                          </Button>
-                        ))}
+                      <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600 dark:text-gray-300">Loading availability...</p>
                       </div>
                     )
-                  })()}
-                </div>
+                  }
+
+                  return (
+                    <div className="grid grid-cols-3 gap-3 max-h-80 overflow-y-auto">
+                      {dateSlots?.availableSlots.map((slot) => (
+                        <Button
+                          key={slot.hour}
+                          variant={
+                            dateSlots.selectedSlots.includes(slot.hour)
+                              ? "default"
+                              : slot.isBooked
+                                ? "secondary"
+                                : "outline"
+                          }
+                          size="sm"
+                          disabled={slot.isBooked}
+                          onClick={() => handleTimeSlotToggle(currentViewDate, slot.hour)}
+                          className={`text-xs transition-all duration-200 ${
+                            slot.isBooked
+                              ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400"
+                              : dateSlots.selectedSlots.includes(slot.hour)
+                                ? "bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/25"
+                                : "hover:bg-purple-50 dark:hover:bg-purple-900/50 border-purple-200 dark:border-purple-700"
+                          }`}
+                        >
+                          {formatTimeSlot(slot.hour)}
+                        </Button>
+                      ))}
+                    </div>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -883,13 +856,13 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent
-        className="overflow-y-auto z-[9999] w-auto max-w-none h-auto max-h-none bg-gradient-to-br from-gray-50 to-white"
+        className="overflow-y-auto z-[9999] w-auto max-w-none h-auto max-h-none bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800"
         aria-describedby="booking-dialog-description"
       >
-        <DialogHeader className="border-b border-gray-200 pb-6">
-          <DialogTitle className="flex items-center gap-3 text-2xl">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-white" />
+        <DialogHeader className="border-b border-gray-200 dark:border-gray-800 pb-6">
+          <DialogTitle className="flex items-center gap-3 text-xl font-bold text-gray-900 dark:text-white">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+              <Calendar className="h-4 w-4 text-white" />
             </div>
             Book {billboard.name}
           </DialogTitle>
@@ -899,391 +872,428 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
         </div>
 
         {error && (
-          <Alert className="border-red-200 bg-red-50 mb-6">
-            <AlertTriangle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
+          <Alert className="border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">
+            <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+            <AlertDescription className="text-red-800 dark:text-red-200">{error}</AlertDescription>
           </Alert>
         )}
 
         {!bookingSystemAvailable ? (
-          <div className="text-center py-12 space-y-6">
-            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
-              <AlertTriangle className="h-8 w-8 text-yellow-600" />
+          <div className="text-center py-16 space-y-6">
+            <div className="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/20 rounded-full flex items-center justify-center mx-auto">
+              <AlertTriangle className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Booking System Unavailable</h3>
-              <p className="text-gray-600 max-w-md mx-auto">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Booking System Unavailable</h3>
+              <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
                 The booking system is currently not available. Please run the SQL script to set up the bookings table.
               </p>
             </div>
-            <Button onClick={() => setOpen(false)} variant="outline" className="bg-white">
+            <Button onClick={() => setOpen(false)} variant="outline" className="border-gray-300 dark:border-gray-600">
               Close
             </Button>
           </div>
-        ) : bookingStep === "campaign-type" ? (
-          <div className="space-y-8 py-6">
-            <ProgressIndicator currentStep={getCurrentStepNumber()} totalSteps={4} />
+        ) : (
+          <>
+            <ProgressIndicator />
             
-            <StepHeader 
-              title="Choose Your Campaign Type"
-              subtitle="Select the type of advertising campaign that best fits your marketing goals"
-              icon={Zap}
-            />
-
-            <div className="max-w-4xl mx-auto">
-              <RadioGroup
-                value={campaignType || ""}
-                onValueChange={(value) => handleCampaignTypeSelect(value as CampaignType)}
-                className="space-y-6"
-              >
-                <CampaignTypeCard
-                  type="single-day"
-                  title="Single Day Campaign"
-                  description="Perfect for one-time events, product launches, or short-term promotions"
-                  features={[
-                    "Simple date and time selection",
-                    "Quick booking process",
-                    "Ideal for events and announcements",
-                    "Cost-effective for short campaigns"
-                  ]}
-                  icon={Zap}
-                  isSelected={campaignType === "single-day"}
-                  onSelect={handleCampaignTypeSelect}
-                  gradient="bg-gradient-to-br from-green-500 to-emerald-600"
-                />
-
-                <CampaignTypeCard
-                  type="multi-day"
-                  title="Multi-Day Campaign"
-                  description="Ideal for brand awareness, ongoing promotions, or seasonal campaigns"
-                  features={[
-                    "Select multiple dates",
-                    "Advanced time slot management",
-                    "Template system for recurring patterns",
-                    "Bulk operations and analytics"
-                  ]}
-                  icon={CalendarDays}
-                  isSelected={campaignType === "multi-day"}
-                  onSelect={handleCampaignTypeSelect}
-                  gradient="bg-gradient-to-br from-blue-500 to-purple-600"
-                />
-              </RadioGroup>
-
-              {campaignType && (
-                <div className="mt-8 text-center">
-                  <Button 
-                    onClick={() => handleCampaignTypeSelect(campaignType)} 
-                    size="lg" 
-                    className="px-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg"
-                  >
-                    Continue with {campaignType === "single-day" ? "Single Day" : "Multi-Day"} Campaign
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : bookingStep === "calendar" ? (
-          <div className="space-y-8 py-6">
-            <ProgressIndicator currentStep={getCurrentStepNumber()} totalSteps={4} />
-            
-            {/* Campaign Type Indicator */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-              <div className="flex items-center gap-3">
-                {campaignType === "single-day" ? (
-                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-                    <Zap className="h-4 w-4 text-white" />
-                  </div>
-                ) : (
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <CalendarDays className="h-4 w-4 text-white" />
-                  </div>
-                )}
-                <div>
-                  <span className="font-semibold text-gray-900">
-                    {campaignType === "single-day" ? "Single Day Campaign" : "Multi-Day Campaign"}
-                  </span>
-                  <p className="text-xs text-gray-600">
-                    {campaignType === "single-day"
-                      ? "Select one date and choose your time slots"
-                      : "Select multiple dates and manage time slots for each"}
+            {bookingStep === "campaign-type" ? (
+              <div className="space-y-8 py-8">
+                <div className="text-center space-y-4">
+                  <h3 className="text-3xl font-bold text-gray-900 dark:text-white">Choose Your Campaign Type</h3>
+                  <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-lg">
+                    Select the type of advertising campaign you'd like to run. This will determine the booking options
+                    available to you.
                   </p>
                 </div>
+
+                <div className="max-w-4xl mx-auto">
+                  <RadioGroup
+                    value={campaignType || ""}
+                    onValueChange={(value) => handleCampaignTypeSelect(value as CampaignType)}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                  >
+                    <Card className="cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-green-300 dark:hover:border-green-600 has-[:checked]:border-green-500 has-[:checked]:bg-green-50 dark:has-[:checked]:bg-green-900/20 has-[:checked]:shadow-lg has-[:checked]:shadow-green-500/25">
+                      <CardContent className="p-8">
+                        <div className="flex items-start space-x-4">
+                          <RadioGroupItem value="single-day" id="single-day" className="mt-1" />
+                          <div className="flex-1 space-y-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/25">
+                                <Zap className="h-8 w-8 text-white" />
+                              </div>
+                              <div>
+                                <Label
+                                  htmlFor="single-day"
+                                  className="text-xl font-bold text-gray-900 dark:text-white cursor-pointer"
+                                >
+                                  Single Day Campaign
+                                </Label>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                  Perfect for one-time events, product launches, or short-term promotions
+                                </p>
+                              </div>
+                            </div>
+                            <div className="pl-20">
+                              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                                <li className="flex items-center gap-2">
+                                  <Check className="h-4 w-4 text-green-500" />
+                                  Simple date and time selection
+                                </li>
+                                <li className="flex items-center gap-2">
+                                  <Check className="h-4 w-4 text-green-500" />
+                                  Quick booking process
+                                </li>
+                                <li className="flex items-center gap-2">
+                                  <Check className="h-4 w-4 text-green-500" />
+                                  Ideal for events and announcements
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-blue-300 dark:hover:border-blue-600 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 dark:has-[:checked]:bg-blue-900/20 has-[:checked]:shadow-lg has-[:checked]:shadow-blue-500/25">
+                      <CardContent className="p-8">
+                        <div className="flex items-start space-x-4">
+                          <RadioGroupItem value="multi-day" id="multi-day" className="mt-1" />
+                          <div className="flex-1 space-y-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                                <CalendarDays className="h-8 w-8 text-white" />
+                              </div>
+                              <div>
+                                <Label htmlFor="multi-day" className="text-xl font-bold text-gray-900 dark:text-white cursor-pointer">
+                                  Multi-Day Campaign
+                                </Label>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                  Ideal for brand awareness, ongoing promotions, or seasonal campaigns
+                                </p>
+                              </div>
+                            </div>
+                            <div className="pl-20">
+                              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                                <li className="flex items-center gap-2">
+                                  <Check className="h-4 w-4 text-blue-500" />
+                                  Select multiple dates
+                                </li>
+                                <li className="flex items-center gap-2">
+                                  <Check className="h-4 w-4 text-blue-500" />
+                                  Advanced time slot management
+                                </li>
+                                <li className="flex items-center gap-2">
+                                  <Check className="h-4 w-4 text-blue-500" />
+                                  Template system for recurring patterns
+                                </li>
+                                <li className="flex items-center gap-2">
+                                  <Check className="h-4 w-4 text-blue-500" />
+                                  Bulk operations and analytics
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </RadioGroup>
+
+                  {campaignType && (
+                    <div className="mt-8 text-center">
+                      <Button 
+                        onClick={() => handleCampaignTypeSelect(campaignType)} 
+                        size="lg" 
+                        className="px-12 py-4 text-lg bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300"
+                      >
+                        Continue with {campaignType === "single-day" ? "Single Day" : "Multi-Day"} Campaign
+                        <ArrowRight className="h-5 w-5 ml-2" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setCampaignType(null)
-                  setBookingStep("campaign-type")
-                  setSelectedDates([])
-                  setDateTimeSlots({})
-                }}
-                className="text-gray-600 hover:text-gray-800 border-gray-300 bg-white"
-              >
-                <ArrowLeft className="h-3 w-3 mr-1" />
-                Change Type
-              </Button>
-            </div>
+            ) : bookingStep === "calendar" ? (
+              <div className="space-y-8">
+                {/* Campaign Type Indicator */}
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {campaignType === "single-day" ? (
+                        <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/25">
+                          <Zap className="h-6 w-6 text-white" />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                          <CalendarDays className="h-6 w-6 text-white" />
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-xl font-bold text-gray-900 dark:text-white">
+                          {campaignType === "single-day" ? "Single Day Campaign" : "Multi-Day Campaign"}
+                        </span>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          {campaignType === "single-day"
+                            ? "Select one date and choose your time slots"
+                            : "Select multiple dates and manage time slots for each"}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setCampaignType(null)
+                        setBookingStep("campaign-type")
+                        setSelectedDates([])
+                        setDateTimeSlots({})
+                      }}
+                      className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white border-gray-300 dark:border-gray-600"
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-1" />
+                      Change Type
+                    </Button>
+                  </div>
+                </div>
 
-            {/* Render appropriate interface */}
-            {campaignType === "single-day" ? renderSingleDayInterface() : renderMultiDayInterface()}
+                {/* Render appropriate interface */}
+                {campaignType === "single-day" ? renderSingleDayInterface() : renderMultiDayInterface()}
 
-            {/* Enhanced Booking Summary */}
-            {getTotalSelectedSlots() > 0 && (
-              <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 shadow-lg">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center text-green-900">
-                    <CreditCard className="h-5 w-5 mr-2" />
-                    Booking Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Billboard:</span>
-                      <span className="font-medium text-gray-900">{billboard.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Campaign Type:</span>
-                      <span className="capitalize font-medium text-gray-900">{campaignType?.replace("-", " ")}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Selected Dates:</span>
-                      <span className="font-medium text-gray-900">{selectedDates.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Total Time Slots:</span>
-                      <span className="font-medium text-gray-900">{getTotalSelectedSlots()} hours</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Rate per hour:</span>
-                      <span className="font-medium text-gray-900">${(billboard.daily_rate / 24).toFixed(2)}</span>
+                {/* Booking Summary */}
+                {getTotalSelectedSlots() > 0 && (
+                  <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 border border-green-200 dark:border-green-800">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-xl text-green-800 dark:text-green-200 flex items-center gap-2">
+                        <Check className="h-5 w-5" />
+                        Booking Summary
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                          <div className="text-gray-500 dark:text-gray-400 text-xs">Billboard</div>
+                          <div className="font-medium text-gray-900 dark:text-white">{billboard.name}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                          <div className="text-gray-500 dark:text-gray-400 text-xs">Campaign Type</div>
+                          <div className="font-medium text-gray-900 dark:text-white capitalize">{campaignType?.replace("-", " ")}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                          <div className="text-gray-500 dark:text-gray-400 text-xs">Selected Dates</div>
+                          <div className="font-medium text-gray-900 dark:text-white">{selectedDates.length}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                          <div className="text-gray-500 dark:text-gray-400 text-xs">Total Time Slots</div>
+                          <div className="font-medium text-gray-900 dark:text-white">{getTotalSelectedSlots()} hours</div>
+                        </div>
+                      </div>
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="text-gray-500 dark:text-gray-400 text-sm">Rate per hour</div>
+                            <div className="text-gray-900 dark:text-white">${(billboard.daily_rate / 24).toFixed(2)}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-gray-500 dark:text-gray-400 text-sm">Total Amount</div>
+                            <div className="text-2xl font-bold text-green-600 dark:text-green-400">${calculateTotal()}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={() => setBookingStep("details")} 
+                        className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 transition-all duration-300"
+                        size="lg"
+                      >
+                        Continue to Details
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            ) : bookingStep === "details" ? (
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                        <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                          <Clock className="h-4 w-4 text-white" />
+                        </div>
+                        Customer Details
+                      </h3>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="name" className="text-gray-700 dark:text-gray-300">Full Name *</Label>
+                          <Input
+                            id="name"
+                            value={customerDetails.name}
+                            onChange={(e) => setCustomerDetails((prev) => ({ ...prev, name: e.target.value }))}
+                            placeholder="Enter your full name"
+                            required
+                            className="mt-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="email" className="text-gray-700 dark:text-gray-300">Email Address *</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={customerDetails.email}
+                            onChange={(e) => setCustomerDetails((prev) => ({ ...prev, email: e.target.value }))}
+                            placeholder="Enter your email"
+                            required
+                            className="mt-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="phone" className="text-gray-700 dark:text-gray-300">Phone Number</Label>
+                          <Input
+                            id="phone"
+                            value={customerDetails.phone}
+                            onChange={(e) => setCustomerDetails((prev) => ({ ...prev, phone: e.target.value }))}
+                            placeholder="Enter your phone number"
+                            className="mt-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="notes" className="text-gray-700 dark:text-gray-300">Additional Notes</Label>
+                          <Textarea
+                            id="notes"
+                            value={customerDetails.notes}
+                            onChange={(e) => setCustomerDetails((prev) => ({ ...prev, notes: e.target.value }))}
+                            placeholder="Any special requirements or notes..."
+                            rows={3}
+                            className="mt-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <Separator className="bg-green-200" />
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
-                    <span className="text-2xl font-bold text-green-600">${calculateTotal()}</span>
+
+                  <div className="space-y-6">
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 p-6 rounded-xl border border-green-200 dark:border-green-800">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                        <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                          <Check className="h-4 w-4 text-white" />
+                        </div>
+                        Booking Summary
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg space-y-3">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Billboard:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">{billboard.name}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Campaign Type:</span>
+                            <span className="font-medium text-gray-900 dark:text-white capitalize">{campaignType?.replace("-", " ")}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Dimensions:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">{billboard.dimensions}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Selected Dates:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">{selectedDates.length}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Total Time Slots:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">{getTotalSelectedSlots()} hours</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Rate per hour:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">${(billboard.daily_rate / 24).toFixed(2)}</span>
+                          </div>
+                          <Separator className="bg-gray-200 dark:bg-gray-700" />
+                          <div className="flex justify-between items-center">
+                            <span className="text-lg font-semibold text-gray-900 dark:text-white">Total Amount:</span>
+                            <span className="text-2xl font-bold text-green-600 dark:text-green-400">${calculateTotal()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                </div>
+
+                <div className="flex gap-4">
                   <Button 
-                    onClick={() => setBookingStep("details")} 
-                    className="w-full mt-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg"
+                    variant="outline" 
+                    onClick={() => setBookingStep("calendar")}
+                    className="border-gray-300 dark:border-gray-600"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Calendar
+                  </Button>
+                  <Button
+                    onClick={handleBookingSubmit}
+                    disabled={!customerDetails.name || !customerDetails.email || loading}
+                    className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 transition-all duration-300"
                     size="lg"
                   >
-                    Continue to Details
-                    <ChevronRight className="h-4 w-4 ml-2" />
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        Confirm Booking
+                        <Check className="h-4 w-4 ml-2" />
+                      </>
+                    )}
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+            ) : (
+              bookingStep === "confirmation" &&
+              bookingSuccess && (
+                <div className="text-center space-y-8 py-16">
+                  <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-500/25">
+                    <Check className="h-12 w-12 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-3xl font-bold text-green-600 dark:text-green-400 mb-4">🎉 Booking Confirmed!</h3>
+                    <p className="text-lg text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                      Your {campaignType?.replace("-", " ")} campaign for {billboard.name} has been successfully confirmed.
+                    </p>
+                  </div>
+                  <Card className="max-w-md mx-auto bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 border border-green-200 dark:border-green-800">
+                    <CardContent className="p-6 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-300">Campaign Type:</span>
+                        <span className="font-medium text-gray-900 dark:text-white capitalize">{campaignType?.replace("-", " ")}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-300">Dates:</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{selectedDates.length} selected</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-300">Total Slots:</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{getTotalSelectedSlots()} hours</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-300">Total:</span>
+                        <span className="text-xl font-bold text-green-600 dark:text-green-400">${calculateTotal()}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      📧 A confirmation email has been sent to {customerDetails.email}
+                    </p>
+                    <Button 
+                      onClick={() => setOpen(false)} 
+                      className="w-full max-w-md bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-500/25"
+                      size="lg"
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              )
             )}
-          </div>
-        ) : bookingStep === "details" ? (
-          <div className="space-y-8 py-6">
-            <ProgressIndicator currentStep={getCurrentStepNumber()} totalSteps={4} />
-            
-            <StepHeader 
-              title="Customer Details"
-              subtitle="Please provide your contact information to complete the booking"
-              icon={User}
-            />
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-              <div className="space-y-6">
-                <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center text-blue-900">
-                      <User className="h-5 w-5 mr-2" />
-                      Contact Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name" className="text-sm font-medium text-gray-700 flex items-center">
-                        <User className="h-4 w-4 mr-1" />
-                        Full Name *
-                      </Label>
-                      <Input
-                        id="name"
-                        value={customerDetails.name}
-                        onChange={(e) => setCustomerDetails((prev) => ({ ...prev, name: e.target.value }))}
-                        placeholder="Enter your full name"
-                        required
-                        className="bg-white border-blue-200 focus:border-blue-400 focus:ring-blue-400"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center">
-                        <Mail className="h-4 w-4 mr-1" />
-                        Email Address *
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={customerDetails.email}
-                        onChange={(e) => setCustomerDetails((prev) => ({ ...prev, email: e.target.value }))}
-                        placeholder="Enter your email"
-                        required
-                        className="bg-white border-blue-200 focus:border-blue-400 focus:ring-blue-400"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-sm font-medium text-gray-700 flex items-center">
-                        <Phone className="h-4 w-4 mr-1" />
-                        Phone Number
-                      </Label>
-                      <Input
-                        id="phone"
-                        value={customerDetails.phone}
-                        onChange={(e) => setCustomerDetails((prev) => ({ ...prev, phone: e.target.value }))}
-                        placeholder="Enter your phone number"
-                        className="bg-white border-blue-200 focus:border-blue-400 focus:ring-blue-400"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="notes" className="text-sm font-medium text-gray-700 flex items-center">
-                        <MessageSquare className="h-4 w-4 mr-1" />
-                        Additional Notes
-                      </Label>
-                      <Textarea
-                        id="notes"
-                        value={customerDetails.notes}
-                        onChange={(e) => setCustomerDetails((prev) => ({ ...prev, notes: e.target.value }))}
-                        placeholder="Any special requirements or notes..."
-                        rows={3}
-                        className="bg-white border-blue-200 focus:border-blue-400 focus:ring-blue-400"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="space-y-6">
-                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center text-green-900">
-                      <CreditCard className="h-5 w-5 mr-2" />
-                      Booking Summary
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-3 text-sm">
-                      <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-green-100">
-                        <span className="text-gray-600 flex items-center">
-                          <MapPin className="h-4 w-4 mr-1" />
-                          Billboard:
-                        </span>
-                        <span className="font-medium text-gray-900">{billboard.name}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-green-100">
-                        <span className="text-gray-600">Campaign Type:</span>
-                        <span className="capitalize font-medium text-gray-900">{campaignType?.replace("-", " ")}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-green-100">
-                        <span className="text-gray-600">Dimensions:</span>
-                        <span className="font-medium text-gray-900">{billboard.dimensions}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-green-100">
-                        <span className="text-gray-600">Selected Dates:</span>
-                        <span className="font-medium text-gray-900">{selectedDates.length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-green-100">
-                        <span className="text-gray-600">Total Time Slots:</span>
-                        <span className="font-medium text-gray-900">{getTotalSelectedSlots()} hours</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-green-100">
-                        <span className="text-gray-600">Rate per hour:</span>
-                        <span className="font-medium text-gray-900">${(billboard.daily_rate / 24).toFixed(2)}</span>
-                      </div>
-                    </div>
-                    <Separator className="bg-green-200" />
-                    <div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-green-300">
-                      <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
-                      <span className="text-2xl font-bold text-green-600">${calculateTotal()}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            <div className="flex gap-4 justify-center max-w-md mx-auto">
-              <Button 
-                variant="outline" 
-                onClick={() => setBookingStep("calendar")}
-                className="flex-1 bg-white hover:bg-gray-50"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Calendar
-              </Button>
-              <Button
-                onClick={handleBookingSubmit}
-                disabled={!customerDetails.name || !customerDetails.email || loading}
-                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    Confirm Booking
-                    <CheckCircle className="h-4 w-4 ml-2" />
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          bookingStep === "confirmation" &&
-          bookingSuccess && (
-            <div className="text-center space-y-8 py-12">
-              <ProgressIndicator currentStep={getCurrentStepNumber()} totalSteps={4} />
-              
-              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
-                <CheckCircle className="h-10 w-10 text-white" />
-              </div>
-              <div>
-                <h3 className="text-3xl font-bold text-green-600 mb-3">Booking Confirmed! 🎉</h3>
-                <p className="text-gray-600 max-w-md mx-auto text-lg">
-                  Your {campaignType?.replace("-", " ")} campaign for {billboard.name} has been successfully confirmed.
-                </p>
-              </div>
-              <Card className="max-w-md mx-auto bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-                <CardContent className="p-6 space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Campaign Type:</span>
-                    <span className="capitalize font-medium">{campaignType?.replace("-", " ")}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Dates:</span>
-                    <span className="font-medium">{selectedDates.length} selected</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Total Slots:</span>
-                    <span className="font-medium">{getTotalSelectedSlots()} hours</span>
-                  </div>
-                  <Separator className="bg-green-200" />
-                  <div className="flex justify-between text-lg font-semibold">
-                    <span>Total:</span>
-                    <span className="text-green-600">${calculateTotal()}</span>
-                  </div>
-                </CardContent>
-              </Card>
-              <div className="space-y-4">
-                <p className="text-sm text-gray-500">
-                  A confirmation email has been sent to {customerDetails.email}
-                </p>
-                <Button 
-                  onClick={() => setOpen(false)} 
-                  className="w-full max-w-md bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg"
-                  size="lg"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          )
+          </>
         )}
       </DialogContent>
     </Dialog>
