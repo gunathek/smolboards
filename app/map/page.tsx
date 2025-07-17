@@ -23,6 +23,11 @@ const fallbackBillboards: Billboard[] = [
     dimensions: "20x10 ft",
     daily_rate: 150.0,
     monthly_rate: 4000.0,
+    hourly_rate: 20.0,
+    impressions: 5000,
+    cost_per_play: 10,
+    resolution: "1920x1080",
+    provider: "Ad-tastic",
     category: "Shopping Mall",
     address: "Forum Mall, Hosur Road, Koramangala, Bengaluru",
     description: "High-traffic digital billboard at main entrance",
@@ -38,6 +43,11 @@ const fallbackBillboards: Billboard[] = [
     dimensions: "15x8 ft",
     daily_rate: 120.0,
     monthly_rate: 3200.0,
+    hourly_rate: 15.0,
+    impressions: 3000,
+    cost_per_play: 8,
+    resolution: "1280x720",
+    provider: "Social Screens",
     category: "Restaurant",
     address: "Koramangala Social, 5th Block, Koramangala, Bengaluru",
     description: "Premium location with young demographic",
@@ -53,6 +63,11 @@ const fallbackBillboards: Billboard[] = [
     dimensions: "25x12 ft",
     daily_rate: 200.0,
     monthly_rate: 5500.0,
+    hourly_rate: 25.0,
+    impressions: 7000,
+    cost_per_play: 12,
+    resolution: "2560x1440",
+    provider: "Govt Ads",
     category: "Government",
     address: "BDA Complex, Koramangala, Bengaluru",
     description: "Large format billboard with government visibility",
@@ -68,6 +83,11 @@ const fallbackBillboards: Billboard[] = [
     dimensions: "18x9 ft",
     daily_rate: 130.0,
     monthly_rate: 3500.0,
+    hourly_rate: 18.0,
+    impressions: 4000,
+    cost_per_play: 9,
+    resolution: "1920x1080",
+    provider: "Campus Ads",
     category: "Educational",
     address: "Near Jyoti Nivas College, Koramangala, Bengaluru",
     description: "Student-focused advertising location",
@@ -83,6 +103,11 @@ const fallbackBillboards: Billboard[] = [
     dimensions: "22x11 ft",
     daily_rate: 180.0,
     monthly_rate: 4800.0,
+    hourly_rate: 22.0,
+    impressions: 6000,
+    cost_per_play: 11,
+    resolution: "1920x1080",
+    provider: "Metro Ads",
     category: "Transportation",
     address: "Koramangala Metro Station, Bengaluru",
     description: "High footfall metro station location",
@@ -186,6 +211,7 @@ export default function KoramangalaMap() {
       const { data, error: fetchError } = await supabase
         .from("billboards")
         .select("*")
+        .eq('showup', true) // Filter by showup = true
         .order("created_at", { ascending: false })
 
       if (fetchError) {
@@ -213,8 +239,12 @@ export default function KoramangalaMap() {
           setUsingFallbackData(true)
         }
       } else {
-        setBillboards(data)
-        console.log(`Loaded ${data.length} billboards from database`)
+        const shownBillboards = data.filter(b => b.showup)
+        const maxRate = Math.max(...shownBillboards.map((b) => b.daily_rate), 1000);
+        setBillboards(shownBillboards)
+        setFilters(prev => ({...prev, maxRate: maxRate}));
+        console.log("Fetched billboards:", shownBillboards) // Log fetched data
+        console.log(`Loaded ${shownBillboards.length} billboards from database`)
       }
     } catch (error) {
       console.error("Error in fetchBillboards:", error)
@@ -333,15 +363,14 @@ export default function KoramangalaMap() {
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {/* Booking Dialog */}
-      {bookingBillboard && (
-        <BookingDialog billboard={bookingBillboard}>
-          <div style={{ display: "none" }} />
-        </BookingDialog>
-      )}
+      <BookingDialog billboard={bookingBillboard} open={bookingDialogOpen} onOpenChange={setBookingDialogOpen} />
 
       {/* Error Alert */}
       {(error || usingFallbackData) && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1002] w-full max-w-md px-4">
+        <div
+          className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1002] w-full max-w-md px-4"
+          data-error-alert
+        >
           <Alert className="bg-yellow-50 border-yellow-200">
             <AlertCircle className="h-4 w-4 text-yellow-600" />
             <AlertDescription className="text-yellow-800">
@@ -357,18 +386,24 @@ export default function KoramangalaMap() {
       )}
 
       {/* Billboard Sidebar */}
-      <BillboardSidebar
-        billboards={billboards}
-        visibleBillboards={visibleBillboards}
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-        onBillboardSelect={handleBillboardSelect}
-        selectedBillboard={selectedBillboard}
-        onFilterChange={setFilters}
-      />
+      <div data-sidebar>
+        <BillboardSidebar
+          billboards={billboards}
+          visibleBillboards={visibleBillboards}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          onBillboardSelect={handleBillboardSelect}
+          selectedBillboard={selectedBillboard}
+          onFilterChange={setFilters}
+          filters={filters}
+        />
+      </div>
 
       {/* Map Component */}
-      <div className={`transition-all duration-300 relative z-0 ${sidebarOpen ? "md:ml-80" : "md:ml-80"}`}>
+      <div
+        className={`transition-all duration-300 relative z-0 ${sidebarOpen ? "md:ml-80" : "md:ml-80"}`}
+        data-map-container
+      >
         <MapComponent
           center={mapCenter}
           zoom={mapZoom}
@@ -384,12 +419,13 @@ export default function KoramangalaMap() {
         className={`absolute top-4 z-[1000] transition-all duration-300 ${
           error || usingFallbackData ? "top-20" : "top-4"
         } ${sidebarOpen ? "left-[21rem]" : "left-[21rem]"} md:left-[21rem]`}
+        data-back-button
       >
         <Button
           onClick={handleBack}
           size="icon"
-          className="h-10 w-10 rounded-full shadow-lg bg-white hover:bg-gray-50 text-gray-700 border border-gray-200"
-          variant="outline"
+          className="h-10 w-10 rounded-full shadow-lg bg-black hover:bg-white-50 text-white-700 border border-gray-200"
+          variant="default"
         >
           <ArrowLeft className="h-4 w-4" />
           <span className="sr-only">Go back</span>
@@ -401,6 +437,7 @@ export default function KoramangalaMap() {
         className={`absolute left-1/2 transform -translate-x-1/2 z-[1000] w-full max-w-md px-4 transition-all duration-300 ${
           error || usingFallbackData ? "top-20" : "top-4"
         }`}
+        data-search-container
       >
         <div className="relative">
           <Card className="p-0 shadow-lg border-gray-200">
@@ -445,7 +482,7 @@ export default function KoramangalaMap() {
       </div>
 
       {/* Floating Zoom Controls - Top Right */}
-      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2" data-zoom-controls>
         <Button
           onClick={handleZoomIn}
           size="icon"
@@ -467,25 +504,14 @@ export default function KoramangalaMap() {
       </div>
 
       {/* Floating Map Stats - Bottom Right */}
-      <div className="absolute bottom-4 right-4 z-[1000]">
+      <div className="absolute bottom-4 right-4 z-[1000]" data-stats-container>
         <MapStats visibleCount={visibleBillboards.length} totalCount={billboards.length} />
       </div>
 
       {/* Click overlay to close search results */}
       {showResults && <div className="absolute inset-0 z-[999]" onClick={() => setShowResults(false)} />}
 
-      {/* Hidden booking dialog trigger */}
-      {bookingDialogOpen && bookingBillboard && (
-        <BookingDialog billboard={bookingBillboard}>
-          <button
-            style={{ display: "none" }}
-            onClick={() => {
-              setBookingDialogOpen(false)
-              setBookingBillboard(null)
-            }}
-          />
-        </BookingDialog>
-      )}
+      
     </div>
   )
 }

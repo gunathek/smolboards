@@ -14,7 +14,7 @@ import {
   Trash2,
   Zap,
   CalendarDays,
-  ChevronDown,
+  ChevronRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -26,12 +26,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { type Billboard, type Booking, getBillboardBookings, createBooking, initializeBookings } from "@/lib/supabase"
 
 interface BookingDialogProps {
-  billboard: Billboard
-  children: React.ReactNode
+  billboard: Billboard | null
+  children?: React.ReactNode // Make children optional as it's not always passed when controlled externally
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 interface TimeSlot {
@@ -49,8 +51,7 @@ interface DateTimeSlots {
 
 type CampaignType = "single-day" | "multi-day"
 
-export function BookingDialog({ billboard, children }: BookingDialogProps) {
-  const [open, setOpen] = useState(false)
+export function BookingDialog({ billboard, children, open, onOpenChange = () => {} }: BookingDialogProps) {
   const [campaignType, setCampaignType] = useState<CampaignType | null>(null)
   const [selectedDates, setSelectedDates] = useState<Date[]>([])
   const [currentViewDate, setCurrentViewDate] = useState<Date>()
@@ -65,10 +66,109 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
     phone: "",
     notes: "",
   })
+  const [formErrors, setFormErrors] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  })
+  const [countryCode, setCountryCode] = useState("+91")
   const [error, setError] = useState<string | null>(null)
   const [bookingSuccess, setBookingSuccess] = useState(false)
   const [bookingSystemAvailable, setBookingSystemAvailable] = useState(true)
   const [templateSlots, setTemplateSlots] = useState<number[]>([])
+
+  // Apply blur effect to background elements when dialog is open
+  useEffect(() => {
+    const elementsToBlur = [
+      "[data-map-container]",
+      "[data-sidebar]",
+      "[data-stats-container]",
+      "[data-search-container]",
+      "[data-zoom-controls]",
+      "[data-back-button]",
+      "[data-error-alert]",
+      "main",
+      ".leaflet-container",
+      ".billboard-sidebar",
+      ".map-stats",
+    ]
+
+    if (open) {
+      // Apply blur effect using CSS filter
+      elementsToBlur.forEach((selector) => {
+        const elements = document.querySelectorAll(selector)
+        elements.forEach((element) => {
+          if (element instanceof HTMLElement) {
+            element.style.filter = "blur(4px)"
+            element.style.transition = "filter 0.3s ease-in-out"
+            element.style.pointerEvents = "none"
+          }
+        })
+      })
+
+      // Also apply blur to body for general background
+      document.body.style.overflow = "hidden"
+
+      // Create a backdrop blur overlay
+      const backdrop = document.createElement("div")
+      backdrop.id = "booking-dialog-backdrop"
+      backdrop.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(2px);
+        z-index: 9998;
+        pointer-events: none;
+        transition: all 0.3s ease-in-out;
+      `
+      document.body.appendChild(backdrop)
+    } else {
+      // Remove blur effect
+      elementsToBlur.forEach((selector) => {
+        const elements = document.querySelectorAll(selector)
+        elements.forEach((element) => {
+          if (element instanceof HTMLElement) {
+            element.style.filter = ""
+            element.style.transition = ""
+            element.style.pointerEvents = ""
+          }
+        })
+      })
+
+      document.body.style.overflow = ""
+
+      // Remove backdrop
+      const backdrop = document.getElementById("booking-dialog-backdrop")
+      if (backdrop) {
+        backdrop.remove()
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (open) {
+        elementsToBlur.forEach((selector) => {
+          const elements = document.querySelectorAll(selector)
+          elements.forEach((element) => {
+            if (element instanceof HTMLElement) {
+              element.style.filter = ""
+              element.style.transition = ""
+              element.style.pointerEvents = ""
+            }
+          })
+        })
+        document.body.style.overflow = ""
+
+        const backdrop = document.getElementById("booking-dialog-backdrop")
+        if (backdrop) {
+          backdrop.remove()
+        }
+      }
+    }
+  }, [open])
 
   // Check if booking system is available
   useEffect(() => {
@@ -91,6 +191,10 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
 
     checkBookingSystem()
   }, [open])
+
+  if (!billboard) {
+    return null
+  }
 
   // Generate time slots for a day (8 AM to 10 PM)
   const generateTimeSlots = (bookings: Booking[] = []): TimeSlot[] => {
@@ -116,7 +220,7 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
 
     try {
       const result = await getBillboardBookings(billboard.id, dateString, dateString)
-      if ('success' in result && result.success) {
+      if ("success" in result && result.success) {
         const slots = generateTimeSlots(result.data)
         setDateTimeSlots((prev) => ({
           ...prev,
@@ -288,8 +392,13 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
   // Calculate total cost
   const calculateTotal = () => {
     const totalSlots = getTotalSelectedSlots()
-    const hourlyRate = billboard.daily_rate / 24
-    return (hourlyRate * totalSlots).toFixed(2)
+    return (billboard.hourly_rate * totalSlots).toFixed(2)
+  }
+
+  // Calculate total impressions
+  const calculateTotalImpressions = () => {
+    const totalSlots = getTotalSelectedSlots()
+    return Math.round((billboard.impressions / 24) * totalSlots)
   }
 
   const formatTimeSlot = (hour: number) => {
@@ -299,37 +408,83 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
   }
 
   const handleBookingSubmit = async () => {
-    if (selectedDates.length === 0 || getTotalSelectedSlots() === 0) return
+    if (selectedDates.length === 0 || getTotalSelectedSlots() === 0) {
+      setError("Please select at least one date and time slot.")
+      return
+    }
+    if (!customerDetails.name || !customerDetails.email || !customerDetails.phone) {
+      setFormErrors({
+        name: !customerDetails.name ? "Full name is required" : "",
+        email: !customerDetails.email ? "Email address is required" : "",
+        phone: !customerDetails.phone ? "Phone number is required" : "",
+      })
+      return
+    }
+
+    // Final validation check before submission
+    if (formErrors.name || formErrors.email || formErrors.phone) {
+      return // Stop submission if there are errors
+    }
 
     setLoading(true)
     setError(null)
 
     try {
-      const bookings = []
+      const bookings: Omit<Booking, "id" | "created_at" | "updated_at">[] = []
 
       for (const date of selectedDates) {
         const dateString = format(date, "yyyy-MM-dd")
         const dateSlots = dateTimeSlots[dateString]
 
         if (dateSlots && dateSlots.selectedSlots.length > 0) {
-          const booking: Omit<Booking, "id" | "created_at" | "updated_at"> = {
+          // Group consecutive selected hours into single bookings
+          const sortedHours = dateSlots.selectedSlots.sort((a, b) => a - b)
+          let currentBookingStart = sortedHours[0]
+          let currentBookingEnd = sortedHours[0] + 1
+
+          for (let i = 1; i < sortedHours.length; i++) {
+            if (sortedHours[i] === currentBookingEnd) {
+              currentBookingEnd++
+            } else {
+              // Save previous booking
+              bookings.push({
+                billboard_id: billboard.id,
+                booking_date: dateString,
+                start_hour: currentBookingStart,
+                end_hour: currentBookingEnd,
+                customer_name: customerDetails.name,
+                customer_email: customerDetails.email,
+                customer_phone: customerDetails.phone,
+                booking_status: "confirmed",
+                total_amount: billboard.hourly_rate * (currentBookingEnd - currentBookingStart),
+                notes: customerDetails.notes,
+              })
+              // Start new booking
+              currentBookingStart = sortedHours[i]
+              currentBookingEnd = sortedHours[i] + 1
+            }
+          }
+          // Save the last booking
+          bookings.push({
             billboard_id: billboard.id,
             booking_date: dateString,
-            start_hour: Math.min(...dateSlots.selectedSlots),
-            end_hour: Math.max(...dateSlots.selectedSlots) + 1,
+            start_hour: currentBookingStart,
+            end_hour: currentBookingEnd,
             customer_name: customerDetails.name,
             customer_email: customerDetails.email,
             customer_phone: customerDetails.phone,
             booking_status: "confirmed",
-            total_amount: Number.parseFloat(calculateTotal()) / selectedDates.length,
+            total_amount: billboard.hourly_rate * (currentBookingEnd - currentBookingStart),
             notes: customerDetails.notes,
-          }
+          })
+        }
+      }
 
-          const result = await createBooking(booking)
-          if (!result.success) {
-            throw new Error(result.error || "Failed to create booking")
-          }
-          bookings.push(result.data)
+      // Execute all bookings
+      for (const booking of bookings) {
+        const result = await createBooking(booking)
+        if (!result.success) {
+          throw new Error(result.error || "Failed to create booking")
         }
       }
 
@@ -356,7 +511,7 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
   }
 
   const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen)
+    onOpenChange(newOpen)
     if (!newOpen) {
       resetDialog()
     }
@@ -373,13 +528,13 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
         {/* Calendar Section */}
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold mb-2">Select Date</h3>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-50">Select Date</h3>
             <CalendarComponent
               mode="single"
               selected={selectedDate}
               onSelect={handleDateSelect}
               disabled={(date) => date < new Date() || date > addDays(new Date(), 90)}
-              className="rounded-md border"
+              className="rounded-md border w-full"
             />
             {selectedDate && (
               <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -396,27 +551,27 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
         {/* Time Slots Section */}
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold mb-2">Available Time Slots (8 AM - 10 PM)</h3>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-50">Available Time Slots (8 AM - 10 PM)</h3>
 
             {!selectedDate ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>Select a date to view available time slots</p>
               </div>
             ) : loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p className="text-gray-500">Loading availability...</p>
+                <p className="text-gray-500 dark:text-gray-400">Loading availability...</p>
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-2">
+                  <div className="flex gap-2 w-full sm:w-auto">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => selectedDate && handleSelectAllForDate(selectedDate)}
-                      className="text-xs"
+                      className="text-xs w-full sm:w-auto"
                     >
                       {dateSlots?.availableSlots
                         .filter((s) => !s.isBooked)
@@ -437,7 +592,7 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                         size="sm"
                         variant="outline"
                         onClick={handleClearAllSlots}
-                        className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
+                        className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent w-full sm:w-auto"
                       >
                         <Trash2 className="h-3 w-3 mr-1" />
                         Clear All
@@ -445,12 +600,12 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                     )}
                   </div>
                   {dateSlots && dateSlots.selectedSlots.length > 0 && (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 mt-2 sm:mt-0">
                       {dateSlots.selectedSlots.length} selected
                     </Badge>
                   )}
                 </div>
-                <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
                   {dateSlots?.availableSlots.map((slot) => (
                     <Button
                       key={slot.hour}
@@ -488,28 +643,28 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
   const renderMultiDayInterface = () => (
     <div className="space-y-6">
       {/* Global Counter and Template Controls */}
-      <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-4">
           <div className="text-sm">
-            <span className="font-semibold text-blue-900">Total Selected Slots:</span>
+            <span className="font-semibold text-slate-900 dark:text-white">Total Selected Slots:</span>
             <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
               {getTotalSelectedSlots()}
             </Badge>
           </div>
           <div className="text-sm">
-            <span className="font-semibold text-blue-900">Selected Dates:</span>
+            <span className="font-semibold text-slate-900 dark:text-white">Selected Dates:</span>
             <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
               {selectedDates.length}
             </Badge>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
           {getTotalSelectedSlots() > 0 && (
             <Button
               size="sm"
               variant="outline"
               onClick={handleClearAllSlots}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 bg-transparent"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 bg-transparent w-full sm:w-auto"
             >
               <Trash2 className="h-3 w-3 mr-1" />
               Clear All Slots
@@ -528,11 +683,17 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                 disabled={
                   !currentViewDate || !dateTimeSlots[format(currentViewDate, "yyyy-MM-dd")]?.selectedSlots.length
                 }
+                className="w-full sm:w-auto text-white-800 dark:text-black-300 border-white-300 dark:border-white-700"
               >
                 <Copy className="h-3 w-3 mr-1" />
                 Copy Current Slots
               </Button>
-              <Button size="sm" onClick={applyTemplateToSelectedDates} disabled={templateSlots.length === 0}>
+              <Button
+                size="sm"
+                onClick={applyTemplateToSelectedDates}
+                disabled={templateSlots.length === 0}
+                className="w-full sm:w-auto text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              >
                 Apply to All Dates ({templateSlots.length} slots)
               </Button>
             </>
@@ -544,7 +705,7 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
         {/* Calendar Section */}
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold mb-2">Select Dates</h3>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-50">Select Dates</h3>
             <CalendarComponent
               mode="multiple"
               selected={selectedDates}
@@ -563,7 +724,7 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                 }
               }}
               disabled={(date) => date < new Date() || date > addDays(new Date(), 90)}
-              className="rounded-md border"
+              className="rounded-md border w-full"
             />
             <p className="text-xs text-gray-500 mt-2">
               Click dates to select/deselect. You can select multiple dates for your campaign.
@@ -574,9 +735,9 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
         {/* Selected Dates Display Column */}
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold mb-2">Selected Dates ({selectedDates.length})</h3>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-50">Selected Dates ({selectedDates.length})</h3>
             {selectedDates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No dates selected</p>
                 <p className="text-xs text-gray-400 mt-1">Select dates from the calendar</p>
@@ -595,15 +756,17 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                       <Card
                         key={dateString}
                         className={`cursor-pointer transition-all hover:shadow-md ${
-                          isCurrentView ? "ring-2 ring-blue-500 bg-blue-50" : "hover:bg-gray-50"
+                          isCurrentView
+                            ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30"
+                            : "hover:bg-gray-50 dark:hover:bg-gray-900"
                         }`}
                         onClick={() => setCurrentViewDate(date)}
                       >
                         <CardContent className="p-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <div className="font-medium text-sm text-gray-900">{format(date, "MMM dd, yyyy")}</div>
-                              <div className="text-xs text-gray-500">{format(date, "EEEE")}</div>
+                              <div className="font-medium text-sm text-gray-900 dark:text-gray-50">{format(date, "MMM dd, yyyy")}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">{format(date, "EEEE")}</div>
                             </div>
                             <div className="flex items-center gap-2">
                               {selectedCount > 0 && (
@@ -630,30 +793,30 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
         {/* Time Slots Section */}
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold mb-2">Time Slots (8 AM - 10 PM)</h3>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-50">Time Slots (8 AM - 10 PM)</h3>
 
             {selectedDates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>Select dates to view available time slots</p>
               </div>
             ) : !currentViewDate ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>Click on a selected date to view its time slots</p>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex flex-col sm:flex-row items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg gap-2">
                   <div>
-                    <h4 className="font-medium text-gray-900">{format(currentViewDate, "EEEE, MMM dd, yyyy")}</h4>
-                    <p className="text-xs text-gray-500">Click time slots to select/deselect</p>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-50">{format(currentViewDate, "EEEE, MMM dd, yyyy")}</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Click time slots to select/deselect</p>
                   </div>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleSelectAllForDate(currentViewDate)}
-                    className="text-xs"
+                    className="text-xs w-full sm:w-auto"
                   >
                     {(() => {
                       const dateString = format(currentViewDate, "yyyy-MM-dd")
@@ -683,13 +846,13 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                     return (
                       <div className="text-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                        <p className="text-gray-500">Loading availability...</p>
+                        <p className="text-gray-500 dark:text-gray-400">Loading availability...</p>
                       </div>
                     )
                   }
 
                   return (
-                    <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
                       {dateSlots?.availableSlots.map((slot) => (
                         <Button
                           key={slot.hour}
@@ -729,11 +892,11 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent
-        className="overflow-y-auto z-[9999] w-auto max-w-none h-auto max-h-none"
+        className="overflow-y-auto z-[9999] w-[95vw] max-w-4xl h-auto max-h-[95vh] p-4 sm:p-6 bg-white dark:bg-gray-950"
         aria-describedby="booking-dialog-description"
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-50">
             <Calendar className="h-5 w-5" />
             Book {billboard.name}
           </DialogTitle>
@@ -745,7 +908,7 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
         {error && (
           <Alert className="border-red-200 bg-red-50">
             <AlertTriangle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
+            <AlertDescription className="text-red-900 dark:text-red-200">{error}</AlertDescription>
           </Alert>
         )}
 
@@ -753,127 +916,97 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
           <div className="text-center py-8 space-y-4">
             <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Booking System Unavailable</h3>
-              <p className="text-gray-600 mt-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">Booking System Unavailable</h3>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
                 The booking system is currently not available. Please run the SQL script to set up the bookings table.
               </p>
             </div>
-            <Button onClick={() => setOpen(false)} variant="outline">
+            <Button onClick={() => handleOpenChange(false)} variant="outline">
               Close
             </Button>
           </div>
         ) : bookingStep === "campaign-type" ? (
-          <div className="space-y-6 py-8">
-            <div className="text-center space-y-4">
-              <h3 className="text-2xl font-semibold text-gray-900">Choose Your Campaign Type</h3>
-              <p className="text-gray-600 max-w-2xl mx-auto">
+          <div className="space-y-6 py-4 sm:py-8">
+            <div className="text-center space-y-2 sm:space-y-4">
+              <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-50">Choose Your Campaign Type</h3>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
                 Select the type of advertising campaign you'd like to run. This will determine the booking options
                 available to you.
               </p>
             </div>
 
-            <div className="max-w-2xl mx-auto">
-              <RadioGroup
-                value={campaignType || ""}
-                onValueChange={(value) => handleCampaignTypeSelect(value as CampaignType)}
-                className="space-y-4"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+              {/* Single-Day Campaign Card */}
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow border-2 border-transparent hover:border-green-500"
+                onClick={() => handleCampaignTypeSelect("single-day")}
               >
-                <div className="space-y-4">
-                  <Card className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-green-300 has-[:checked]:border-green-500 has-[:checked]:bg-green-50">
-                    <CardContent className="p-6">
-                      <div className="flex items-start space-x-4">
-                        <RadioGroupItem value="single-day" id="single-day" className="mt-1" />
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                              <Zap className="h-6 w-6 text-green-600" />
-                            </div>
-                            <div>
-                              <Label
-                                htmlFor="single-day"
-                                className="text-lg font-semibold text-gray-900 cursor-pointer"
-                              >
-                                Single Day Campaign
-                              </Label>
-                              <p className="text-sm text-gray-600">
-                                Perfect for one-time events, product launches, or short-term promotions
-                              </p>
-                            </div>
-                          </div>
-                          <div className="pl-15">
-                            <ul className="text-sm text-gray-600 space-y-1">
-                              <li>• Simple date and time selection</li>
-                              <li>• Quick booking process</li>
-                              <li>• Ideal for events and announcements</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 dark:bg-green-800/30 rounded-full flex items-center justify-center shrink-0">
+                      <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <h4 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-50">Single Day Campaign</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Perfect for one-time events, product launches, or short-term promotions.
+                      </p>
+                      <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc pl-5">
+                        <li>Simple date and time selection</li>
+                        <li>Quick booking process</li>
+                        <li>Ideal for events and announcements</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                  <Card className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-blue-300 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
-                    <CardContent className="p-6">
-                      <div className="flex items-start space-x-4">
-                        <RadioGroupItem value="multi-day" id="multi-day" className="mt-1" />
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                              <CalendarDays className="h-6 w-6 text-blue-600" />
-                            </div>
-                            <div>
-                              <Label htmlFor="multi-day" className="text-lg font-semibold text-gray-900 cursor-pointer">
-                                Multi-Day Campaign
-                              </Label>
-                              <p className="text-sm text-gray-600">
-                                Ideal for brand awareness, ongoing promotions, or seasonal campaigns
-                              </p>
-                            </div>
-                          </div>
-                          <div className="pl-15">
-                            <ul className="text-sm text-gray-600 space-y-1">
-                              <li>• Select multiple dates</li>
-                              <li>• Advanced time slot management</li>
-                              <li>• Template system for recurring patterns</li>
-                              <li>• Bulk operations and analytics</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </RadioGroup>
-
-              {campaignType && (
-                <div className="mt-6 text-center">
-                  <Button onClick={() => handleCampaignTypeSelect(campaignType)} size="lg" className="px-8">
-                    Continue with {campaignType === "single-day" ? "Single Day" : "Multi-Day"} Campaign
-                    <ChevronDown className="h-4 w-4 ml-2 rotate-[-90deg]" />
-                  </Button>
-                </div>
-              )}
+              {/* Multi-Day Campaign Card */}
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow border-2 border-transparent hover:border-blue-500"
+                onClick={() => handleCampaignTypeSelect("multi-day")}
+              >
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-800/30 rounded-full flex items-center justify-center shrink-0">
+                      <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <h4 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-50">Multi-Day Campaign</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Ideal for brand awareness, ongoing promotions, or seasonal campaigns.
+                      </p>
+                      <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc pl-5">
+                        <li>Select multiple dates</li>
+                        <li>Advanced time slot management</li>
+                        <li>Template system for recurring patterns</li>
+                        <li>Bulk operations and analytics</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         ) : bookingStep === "calendar" ? (
           <div className="space-y-6">
             {/* Campaign Type Indicator */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border">
+            <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border dark:border-gray-800 gap-3">
               <div className="flex items-center gap-3">
                 {campaignType === "single-day" ? (
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <Zap className="h-4 w-4 text-green-600" />
+                  <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center shrink-0">
+                    <Zap className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
                 ) : (
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <CalendarDays className="h-4 w-4 text-blue-600" />
+                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center shrink-0">
+                    <CalendarDays className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </div>
                 )}
                 <div>
-                  <span className="font-semibold text-gray-900">
+                  <span className="font-semibold text-gray-900 dark:text-gray-50">
                     {campaignType === "single-day" ? "Single Day Campaign" : "Multi-Day Campaign"}
                   </span>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
                     {campaignType === "single-day"
                       ? "Select one date and choose your time slots"
                       : "Select multiple dates and manage time slots for each"}
@@ -889,7 +1022,7 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
                   setSelectedDates([])
                   setDateTimeSlots({})
                 }}
-                className="text-gray-600 hover:text-gray-800 border-gray-300"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-600 w-full sm:w-auto"
               >
                 Change Type
               </Button>
@@ -900,35 +1033,39 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
 
             {/* Booking Summary */}
             {getTotalSelectedSlots() > 0 && (
-              <Card>
+              <Card className="bg-white dark:bg-gray-950">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Booking Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                     <span>Billboard:</span>
                     <span className="font-medium">{billboard.name}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                     <span>Campaign Type:</span>
                     <span className="capitalize">{campaignType?.replace("-", " ")}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                     <span>Selected Dates:</span>
                     <span>{selectedDates.length}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                     <span>Total Time Slots:</span>
                     <span>{getTotalSelectedSlots()} hours</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                     <span>Rate per hour:</span>
-                    <span>${(billboard.daily_rate / 24).toFixed(2)}</span>
+                    <span>₹{billboard.hourly_rate.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
+                    <span>Total Impressions:</span>
+                    <span>~{calculateTotalImpressions()}</span>
                   </div>
                   <Separator />
-                  <div className="flex justify-between font-semibold">
+                  <div className="flex justify-between font-semibold text-gray-800 dark:text-gray-300">
                     <span>Total Amount:</span>
-                    <span className="text-green-600">${calculateTotal()}</span>
+                    <span className="text-green-600">₹{calculateTotal()}</span>
                   </div>
                   <Button onClick={() => setBookingStep("details")} className="w-full mt-4">
                     Continue to Details
@@ -941,40 +1078,83 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Customer Details</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">Customer Details</h3>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="name">Full Name *</Label>
+                    <Label htmlFor="name" className="text-gray-800 dark:text-gray-300">Full Name *</Label>
                     <Input
                       id="name"
                       value={customerDetails.name}
-                      onChange={(e) => setCustomerDetails((prev) => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => {
+                        const name = e.target.value
+                        if (/\d/.test(name)) {
+                          setFormErrors((prev) => ({ ...prev, name: "Name should not contain numbers." }))
+                        } else {
+                          setFormErrors((prev) => ({ ...prev, name: "" }))
+                        }
+                        setCustomerDetails((prev) => ({ ...prev, name }))
+                      }}
                       placeholder="Enter your full name"
                       required
+                      aria-required="true"
                     />
+                    {formErrors.name && <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>}
                   </div>
                   <div>
-                    <Label htmlFor="email">Email Address *</Label>
+                    <Label htmlFor="email" className="text-gray-800 dark:text-gray-300">Email Address *</Label>
                     <Input
                       id="email"
                       type="email"
                       value={customerDetails.email}
-                      onChange={(e) => setCustomerDetails((prev) => ({ ...prev, email: e.target.value }))}
+                      onChange={(e) => {
+                        const email = e.target.value
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                        if (!emailRegex.test(email)) {
+                          setFormErrors((prev) => ({ ...prev, email: "Invalid email address" }))
+                        } else {
+                          setFormErrors((prev) => ({ ...prev, email: "" }))
+                        }
+                        setCustomerDetails((prev) => ({ ...prev, email }))
+                      }}
                       placeholder="Enter your email"
                       required
+                      aria-required="true"
                     />
+                    {formErrors.email && <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>}
                   </div>
                   <div>
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      value={customerDetails.phone}
-                      onChange={(e) => setCustomerDetails((prev) => ({ ...prev, phone: e.target.value }))}
-                      placeholder="Enter your phone number"
-                    />
+                    <Label htmlFor="phone" className="text-gray-800 dark:text-gray-300">Phone Number</Label>
+                    <div className="flex items-center">
+                      <select
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm h-10"
+                      >
+                        <option value="+91">+91 (IN)</option>
+                        <option value="+1">+1 (US)</option>
+                        <option value="+44">+44 (UK)</option>
+                      </select>
+                      <Input
+                        id="phone"
+                        value={customerDetails.phone}
+                        onChange={(e) => {
+                          const phone = e.target.value.replace(/\D/g, "")
+                          if (phone.length <= 10) {
+                            setCustomerDetails((prev) => ({ ...prev, phone }))
+                            if (phone.length > 0 && phone.length !== 10) {
+                              setFormErrors((prev) => ({ ...prev, phone: "Phone number must be 10 digits" }))
+                            } else {
+                              setFormErrors((prev) => ({ ...prev, phone: "" }))
+                            }
+                          }
+                        }}
+                        placeholder="Enter your 10-digit phone number"
+                      />
+                    </div>
+                    {formErrors.phone && <p className="text-red-500 text-sm mt-1">{formErrors.phone}</p>}
                   </div>
                   <div>
-                    <Label htmlFor="notes">Additional Notes</Label>
+                    <Label htmlFor="notes" className="text-gray-800 dark:text-gray-300">Additional Notes</Label>
                     <Textarea
                       id="notes"
                       value={customerDetails.notes}
@@ -987,45 +1167,49 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Booking Summary</h3>
-                <Card>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">Booking Summary</h3>
+                <Card className="bg-white dark:bg-gray-950">
                   <CardContent className="p-4 space-y-3">
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                       <span>Billboard:</span>
                       <span className="font-medium">{billboard.name}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                       <span>Campaign Type:</span>
                       <span className="capitalize">{campaignType?.replace("-", " ")}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                       <span>Dimensions:</span>
                       <span>{billboard.dimensions}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                       <span>Selected Dates:</span>
                       <span>{selectedDates.length}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                       <span>Total Time Slots:</span>
                       <span>{getTotalSelectedSlots()} hours</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                       <span>Rate per hour:</span>
-                      <span>${(billboard.daily_rate / 24).toFixed(2)}</span>
+                      <span>₹{billboard.hourly_rate.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
+                      <span>Total Impressions:</span>
+                      <span>~{calculateTotalImpressions()}</span>
                     </div>
                     <Separator />
-                    <div className="flex justify-between font-semibold text-lg">
+                    <div className="flex justify-between font-semibold text-lg text-gray-800 dark:text-gray-300">
                       <span>Total Amount:</span>
-                      <span className="font-semibold">${calculateTotal()}</span>
+                      <span className="font-semibold">₹{calculateTotal()}</span>
                     </div>
                   </CardContent>
                 </Card>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setBookingStep("calendar")}>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button variant="outline" onClick={() => setBookingStep("calendar")} className="w-full sm:w-auto">
                 Back to Calendar
               </Button>
               <Button
@@ -1046,31 +1230,31 @@ export function BookingDialog({ billboard, children }: BookingDialogProps) {
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-green-600 mb-2">Booking Confirmed!</h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 dark:text-gray-400">
                   Your {campaignType?.replace("-", " ")} campaign for {billboard.name} has been successfully confirmed.
                 </p>
               </div>
-              <Card className="max-w-md mx-auto">
+              <Card className="max-w-md mx-auto bg-white dark:bg-gray-950">
                 <CardContent className="p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                     <span>Campaign Type:</span>
                     <span className="capitalize">{campaignType?.replace("-", " ")}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                     <span>Dates:</span>
                     <span>{selectedDates.length} selected</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                     <span>Total Slots:</span>
                     <span>{getTotalSelectedSlots()} hours</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm text-gray-800 dark:text-gray-300">
                     <span>Total:</span>
-                    <span className="font-semibold">${calculateTotal()}</span>
+                    <span className="font-semibold">₹{calculateTotal()}</span>
                   </div>
                 </CardContent>
               </Card>
-              <Button onClick={() => setOpen(false)} className="w-full max-w-md">
+              <Button onClick={() => handleOpenChange(false)} className="w-full max-w-md">
                 Close
               </Button>
             </div>

@@ -43,11 +43,11 @@
   --radius-xl: calc(var(--radius) + 4px);
   --animate-line-shadow: line-shadow 15s linear infinite;
   @keyframes line-shadow {
-  0% {
-    background-position: 0 0;
+    0% {
+      background-position: 0 0;
     }
-  100% {
-    background-position: 100% -100%;
+    100% {
+      background-position: 100% -100%;
     }
   }
 }
@@ -129,6 +129,7 @@
     @apply bg-background text-foreground;
   }
 }
+
 /* Dark theme select dropdown styles */
 [data-radix-select-content] {
   background-color: rgb(17, 24, 39) !important;
@@ -170,4 +171,40 @@
 [data-radix-checkbox-root][data-state="checked"] {
   background-color: white !important;
   border-color: white !important;
+}
+
+/* Booking dialog blur effect support */
+.booking-dialog-backdrop {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Performance optimizations for blur effect */
+.leaflet-container,
+.billboard-sidebar,
+.map-stats {
+  will-change: filter;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Smooth transitions for blur effects */
+[data-map-container],
+[data-sidebar],
+[data-stats-container],
+[data-search-container],
+[data-zoom-controls],
+[data-back-button],
+[data-error-alert] {
+  transition: filter 0.3s ease-in-out;
+}
+
+/* Prevent blur artifacts on mobile */
+@media (max-width: 768px) {
+  .booking-dialog-backdrop {
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
 }

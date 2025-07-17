@@ -38,11 +38,14 @@ export default function MapComponent({
     if (filters.category !== "all") {
       filtered = filtered.filter((b) => b.category === filters.category)
     }
+
     if (filters.status !== "all") {
       filtered = filtered.filter((b) => b.status === filters.status)
     }
 
-    return filtered.filter((b) => b.daily_rate >= filters.minRate && b.daily_rate <= filters.maxRate)
+    filtered = filtered.filter((b) => b.daily_rate >= filters.minRate && b.daily_rate <= filters.maxRate)
+
+    return filtered
   }
 
   // Pretty circular icon
@@ -214,12 +217,26 @@ export default function MapComponent({
       color: #374151;
     ">
       <div>
-        <div style="font-weight: 600; color: #6B7280; font-size: 12px; margin-bottom: 2px;">DAILY RATE</div>
-        <div style="font-weight: 700; color: #059669;">$${b.daily_rate}</div>
+        <div style="font-weight: 600; color: #6B7280; font-size: 12px; margin-bottom: 2px;">COST PER PLAY</div>
+        <div style="font-weight: 700; color: #059669;">₹${b.cost_per_play}</div>
       </div>
       <div>
-        <div style="font-weight: 600; color: #6B7280; font-size: 12px; margin-bottom: 2px;">MONTHLY RATE</div>
-        <div style="font-weight: 700; color: #059669;">$${b.monthly_rate}</div>
+        <div style="font-weight: 600; color: #6B7280; font-size: 12px; margin-bottom: 2px;">PROVIDER</div>
+        <div style="font-weight: 500;">${b.provider}</div>
+      </div>
+    </div>
+    
+    <div style="
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #374151;
+    ">
+      <div>
+        <div style="font-weight: 600; color: #6B7280; font-size: 12px; margin-bottom: 2px;">RESOLUTION</div>
+        <div style="font-weight: 500;">${b.resolution}</div>
       </div>
     </div>
     

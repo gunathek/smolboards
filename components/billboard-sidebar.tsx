@@ -22,6 +22,7 @@ interface BillboardSidebarProps {
   onBillboardSelect: (billboard: Billboard) => void
   selectedBillboard: Billboard | null
   onFilterChange: (filters: BillboardFilters) => void
+  filters: BillboardFilters
 }
 
 export interface BillboardFilters {
@@ -45,11 +46,12 @@ export function BillboardSidebar({
     category: "all",
     status: "all",
     minRate: 0,
-    maxRate: 1000,
+    maxRate: 100000,
     showOnlyVisible: true,
   })
 
-  const [filteredBillboards, setFilteredBillboards] = useState<Billboard[]>([])
+    const [filteredBillboards, setFilteredBillboards] = useState<Billboard[]>([])
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false)
 
   // Get unique categories from all billboards
   const categories = Array.from(new Set(billboards.map((b) => b.category)))
@@ -95,7 +97,7 @@ export function BillboardSidebar({
       category: "all",
       status: "all",
       minRate: 0,
-      maxRate: 1000,
+      maxRate: 100000,
       showOnlyVisible: true,
     })
   }
@@ -106,7 +108,7 @@ export function BillboardSidebar({
       filters.category !== "all" ||
       filters.status !== "all" ||
       filters.minRate !== 0 ||
-      filters.maxRate !== 1000 ||
+      filters.maxRate !== 100000 ||
       !filters.showOnlyVisible
     )
   }
@@ -155,7 +157,7 @@ export function BillboardSidebar({
       <div
         className={`fixed top-0 left-0 h-full w-80 bg-black text-white z-[998] transform transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 overflow-hidden flex flex-col border-r border-gray-800`}
+        } md:translate-x-0 overflow-hidden flex flex-col border-r border-gray-800 billboard-sidebar`}
       >
         {/* Header */}
         <div className="p-4 border-b border-gray-800">
@@ -177,20 +179,20 @@ export function BillboardSidebar({
 
         {/* Moved "Show only visible" filter here */}
         <div className="p-4 border-b border-gray-800">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="visible-only"
-                checked={filters.showOnlyVisible}
-                onCheckedChange={(checked) => updateFilter("showOnlyVisible", checked)}
-                className="border-gray-600 data-[state=checked]:bg-white data-[state=checked]:text-black"
-              />
-              <label htmlFor="visible-only" className="text-sm text-gray-300 flex items-center gap-2 cursor-pointer">
-                <Eye className="h-3 w-3" />
-                Show only visible on map
-              </label>
-            </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="visible-only"
+              checked={filters.showOnlyVisible}
+              onCheckedChange={(checked) => updateFilter("showOnlyVisible", checked)}
+              className="border-gray-600 data-[state=checked]:bg-white data-[state=checked]:text-black"
+            />
+            <label htmlFor="visible-only" className="text-sm text-gray-300 flex items-center gap-2 cursor-pointer">
+              <Eye className="h-3 w-3" />
+              Show only visible on map
+            </label>
           </div>
-          
+        </div>
+
         {/* Filters */}
         <Collapsible className="group/collapsible">
           <div className="p-4 border-b border-gray-800">
@@ -227,8 +229,8 @@ export function BillboardSidebar({
                 <SelectTrigger className="bg-gray-900 border-gray-700 text-white hover:bg-gray-800">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                  <SelectItem value="all" className="hover:bg-gray-800 focus:bg-gray-800">
+                <SelectContent className="bg-gray-700 border-gray-600 text-white z-[1000]">
+                  <SelectItem value="all" className="hover:bg-gray-600 focus:bg-gray-600">
                     All Categories
                   </SelectItem>
                   {categories.map((category) => (
@@ -247,8 +249,8 @@ export function BillboardSidebar({
                 <SelectTrigger className="bg-gray-900 border-gray-700 text-white hover:bg-gray-800">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                  <SelectItem value="all" className="hover:bg-gray-800 focus:bg-gray-800">
+                <SelectContent className="bg-gray-700 border-gray-600 text-white z-[1000]">
+                  <SelectItem value="all" className="hover:bg-gray-600 focus:bg-gray-600">
                     All Status
                   </SelectItem>
                   {statuses.map((status) => (
@@ -263,7 +265,7 @@ export function BillboardSidebar({
             {/* Rate Filter */}
             <div>
               <label className="text-sm text-gray-400 mb-2 block">
-                Daily Rate: ${filters.minRate} - ${filters.maxRate}
+                Daily Rate: ₹{filters.minRate} - ₹{filters.maxRate}
               </label>
               <div className="px-2">
                 <Slider
@@ -272,7 +274,7 @@ export function BillboardSidebar({
                     updateFilter("minRate", min)
                     updateFilter("maxRate", max)
                   }}
-                  max={1000}
+                  max={100000}
                   min={0}
                   step={10}
                   className="w-full"
@@ -311,13 +313,16 @@ export function BillboardSidebar({
                     {billboard.dimensions}
                   </div>
                   <div className="flex items-center gap-1">
-                    <DollarSign className="h-3 w-3" />${billboard.daily_rate}/day
+                    ₹{billboard.cost_per_play}/play
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-xs text-gray-500">{billboard.category}</div>
-                  <div className="text-xs text-white font-medium">${billboard.monthly_rate}/month</div>
+                  <div className="text-xs text-white font-medium flex items-center gap-1">
+                    <Eye className="h-3 w-3" />
+                    {billboard.impressions}
+                  </div>
                 </div>
 
                 {billboard.description && (
@@ -327,11 +332,19 @@ export function BillboardSidebar({
                 {/* Book Now Button */}
                 {billboard.status === "available" && (
                   <div onClick={(e) => e.stopPropagation()}>
-                    <BookingDialog billboard={billboard}>
+                    <BookingDialog
+                      billboard={billboard}
+                      open={selectedBillboard?.id === billboard.id && isBookingDialogOpen}
+                      onOpenChange={setIsBookingDialogOpen}
+                    >
                       <Button
                         data-booking-button="true"
                         size="sm"
                         className="w-full bg-white hover:bg-gray-200 text-black border border-gray-300"
+                        onClick={() => {
+                          onBillboardSelect(billboard)
+                          setIsBookingDialogOpen(true)
+                        }}
                       >
                         <Calendar className="h-3 w-3 mr-1" />
                         Book Now

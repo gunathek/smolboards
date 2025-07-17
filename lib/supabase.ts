@@ -17,6 +17,11 @@ export type Billboard = {
   dimensions: string
   daily_rate: number
   monthly_rate: number
+  hourly_rate: number
+  impressions: number
+  cost_per_play: number
+  resolution: string
+  provider: string
   category: string
   address: string
   description?: string
