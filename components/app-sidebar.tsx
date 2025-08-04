@@ -155,6 +155,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   React.useEffect(() => {
     const getUser = async () => {
+      if (!supabase) {
+        console.warn("Supabase not configured - using guest mode")
+        setUser(null)
+        setLoading(false)
+        return
+      }
       try {
         const {
           data: { user },
@@ -167,25 +173,35 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       }
     }
 
-    getUser()
+    if (supabase) {
+      getUser()
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" || !session) {
-        router.push("/")
-      } else {
-        setUser(session.user)
+      // Listen for auth changes
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_OUT" || !session) {
+          router.push("/")
+        } else {
+          setUser(session.user)
+        }
+      })
+
+      return () => {
+        subscription?.unsubscribe()
       }
-    })
-
-    return () => {
-      subscription?.unsubscribe()
+    } else {
+      setLoading(false)
     }
   }, [router])
 
   const handleSignOut = async () => {
+    if (!supabase) {
+      console.warn("Cannot sign out - Supabase not configured")
+      router.push("/")
+      return
+    }
+
     try {
       await supabase.auth.signOut()
       router.push("/")
