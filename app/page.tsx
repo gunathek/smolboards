@@ -1,15 +1,45 @@
-import HeroSection from "@/components/hero-section";
-import LogoCloud from '@/components/logo-cloud'
-import FeaturesSection from "@/components/features-8";
-import StatsSection from '@/components/stats'
-import Pricing from '@/components/pricing'
-import FAQsThree from '@/components/faqs-3'
-import FooterSection from '@/components/footer-section'
-import { Comparator } from '@/components/ui/pricing-section-with-comparison'
-import Footer from "@/components/ui/animated-footer";
-import AnimatedGradientBackground from "@/components/ui/animated-gradient-background";
+"use client"
+
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
+import HeroSection from "@/components/hero-section"
+import StatsSection from "@/components/stats"
+import FeaturesSection from "@/components/features-8"
+import Footer from "@/components/ui/animated-footer"
+import AnimatedGradientBackground from "@/components/ui/animated-gradient-background"
 
 export default function Home() {
+  const router = useRouter()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (!supabase) return
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) {
+        router.push("/dashboard")
+      }
+    }
+
+    checkAuth()
+
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase?.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        router.push("/dashboard")
+      }
+    }) || { data: { subscription: null } }
+
+    return () => {
+      subscription?.unsubscribe()
+    }
+  }, [router])
+
   return (
     <>
       <AnimatedGradientBackground />
@@ -36,5 +66,5 @@ export default function Home() {
               copyrightText="Smolboards 2025. All Rights Reserved"
               barCount={23} />
     </>
-  );
+  )
 }
