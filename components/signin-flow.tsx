@@ -726,7 +726,7 @@ export const SignInPage = ({ className }: SignInPageProps) => {
                   >
                     <div className="space-y-1">
                       <h1 className="text-[2.5rem] font-bold leading-[1.1] tracking-tight text-white">Welcome!</h1>
-                      <p className="text-[1.25rem] text-white/50 font-light">Account created successfully</p>
+                      <p className="text-[1.25rem] text-white/50 font-light">Verify your email</p>
                     </div>
 
                     <motion.div
@@ -758,7 +758,7 @@ export const SignInPage = ({ className }: SignInPageProps) => {
                       onClick={() => router.push("/dashboard")}
                       className="w-full rounded-full bg-white text-black font-medium py-3 hover:bg-white/90 transition-colors"
                     >
-                      Continue to Dashboard
+                      Continue to Login
                     </motion.button>
                   </motion.div>
                 )}

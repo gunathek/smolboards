@@ -113,7 +113,7 @@ export default function HeroSection() {
                                     delay={0.5}
                                     as="p"
                                     className="mx-auto mt-8 max-w-2xl text-balance text-lg">
-                                    Easiest way to buy billboard ads
+                                    Fastest way to buy billboard ads
                                 </TextEffect>
 
                                 <AnimatedGroup
@@ -137,7 +137,7 @@ export default function HeroSection() {
                                             size="lg"
                                             className="rounded-xl px-5 text-base">
                                             <Link href="https://forms.fillout.com/t/oyu4JEGtYsus" target="_blank">
-                                                <span className="text-nowrap">Get Early Access</span>
+                                                <span className="text-nowrap">Get Started</span>
                                             </Link>
                                         </Button>
                                     </div>
