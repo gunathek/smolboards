@@ -18,8 +18,8 @@ const fallbackBillboards: Billboard[] = [
   {
     id: "1",
     name: "Forum Mall Digital Board",
-    latitude: 12.9279,
-    longitude: 77.6271,
+    lat: 12.9279,
+    lng: 77.6271,
     dimensions: "20x10 ft",
     daily_rate: 150.0,
     monthly_rate: 4000.0,
@@ -38,8 +38,8 @@ const fallbackBillboards: Billboard[] = [
   {
     id: "2",
     name: "Koramangala Social Facade",
-    latitude: 12.9351,
-    longitude: 77.6269,
+    lat: 12.9351,
+    lng: 77.6269,
     dimensions: "15x8 ft",
     daily_rate: 120.0,
     monthly_rate: 3200.0,
@@ -58,8 +58,8 @@ const fallbackBillboards: Billboard[] = [
   {
     id: "3",
     name: "BDA Complex Board",
-    latitude: 12.9368,
-    longitude: 77.6214,
+    lat: 12.9368,
+    lng: 77.6214,
     dimensions: "25x12 ft",
     daily_rate: 200.0,
     monthly_rate: 5500.0,
@@ -78,8 +78,8 @@ const fallbackBillboards: Billboard[] = [
   {
     id: "4",
     name: "Jyoti Nivas Junction",
-    latitude: 12.9298,
-    longitude: 77.6174,
+    lat: 12.9298,
+    lng: 77.6174,
     dimensions: "18x9 ft",
     daily_rate: 130.0,
     monthly_rate: 3500.0,
@@ -98,8 +98,8 @@ const fallbackBillboards: Billboard[] = [
   {
     id: "5",
     name: "Koramangala Metro Station",
-    latitude: 12.9342,
-    longitude: 77.6378,
+    lat: 12.9342,
+    lng: 77.6378,
     dimensions: "22x11 ft",
     daily_rate: 180.0,
     monthly_rate: 4800.0,
@@ -263,10 +263,10 @@ export default function KoramangalaMap() {
     const [[south, west], [north, east]] = mapBounds
     const visible = billboards.filter(
       (billboard) =>
-        billboard.latitude >= south &&
-        billboard.latitude <= north &&
-        billboard.longitude >= west &&
-        billboard.longitude <= east,
+        billboard.lat >= south &&
+        billboard.lat <= north &&
+        billboard.lng >= west &&
+        billboard.lng <= east,
     )
 
     setVisibleBillboards(visible)
@@ -336,7 +336,7 @@ export default function KoramangalaMap() {
   const handleBillboardSelect = (billboard: Billboard) => {
     console.log("Billboard selected:", billboard.name) // Debug log
     setSelectedBillboard(billboard)
-    setMapCenter([billboard.latitude, billboard.longitude])
+    setMapCenter([billboard.lat, billboard.lng])
     setMapZoom(16)
     setSidebarOpen(false) // Close sidebar on mobile after selection
   }

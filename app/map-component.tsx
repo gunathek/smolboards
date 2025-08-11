@@ -147,7 +147,7 @@ export default function MapComponent({
     markerClusterGroupRef.current.clearLayers()
 
     getFilteredBillboards().forEach((b) => {
-      const marker = L.marker([b.latitude, b.longitude], {
+      const marker = L.marker([b.lat, b.lng], {
         icon: createBillboardIcon(b.status, selectedBillboard?.id === b.id),
       }).bindPopup(popupContent(b))
       marker.on("click", () => {

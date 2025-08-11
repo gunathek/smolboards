@@ -12,8 +12,8 @@ export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUr
 export type Billboard = {
   id: string
   name: string
-  latitude: number
-  longitude: number
+  lat: number
+  lng: number
   dimensions: string
   daily_rate: number
   monthly_rate: number
@@ -173,8 +173,8 @@ export async function createSampleBillboards() {
   const sampleBillboards = [
     {
       name: "Forum Mall Digital Board",
-      latitude: 12.9279,
-      longitude: 77.6271,
+      lat: 12.9279,
+      lng: 77.6271,
       dimensions: "20x10 ft",
       daily_rate: 150.0,
       monthly_rate: 4000.0,
@@ -185,8 +185,8 @@ export async function createSampleBillboards() {
     },
     {
       name: "Koramangala Social Facade",
-      latitude: 12.9351,
-      longitude: 77.6269,
+      lat: 12.9351,
+      lng: 77.6269,
       dimensions: "15x8 ft",
       daily_rate: 120.0,
       monthly_rate: 3200.0,
@@ -197,8 +197,8 @@ export async function createSampleBillboards() {
     },
     {
       name: "BDA Complex Board",
-      latitude: 12.9368,
-      longitude: 77.6214,
+      lat: 12.9368,
+      lng: 77.6214,
       dimensions: "25x12 ft",
       daily_rate: 200.0,
       monthly_rate: 5500.0,
@@ -209,8 +209,8 @@ export async function createSampleBillboards() {
     },
     {
       name: "Jyoti Nivas Junction",
-      latitude: 12.9298,
-      longitude: 77.6174,
+      lat: 12.9298,
+      lng: 77.6174,
       dimensions: "18x9 ft",
       daily_rate: 130.0,
       monthly_rate: 3500.0,
@@ -221,8 +221,8 @@ export async function createSampleBillboards() {
     },
     {
       name: "Koramangala Metro Station",
-      latitude: 12.9342,
-      longitude: 77.6378,
+      lat: 12.9342,
+      lng: 77.6378,
       dimensions: "22x11 ft",
       daily_rate: 180.0,
       monthly_rate: 4800.0,
