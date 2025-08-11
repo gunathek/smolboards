@@ -43,7 +43,9 @@ export default function MapComponent({
       filtered = filtered.filter((b) => b.status === filters.status)
     }
 
-    filtered = filtered.filter((b) => b.daily_rate >= filters.minRate && b.daily_rate <= filters.maxRate)
+    filtered = filtered.filter(
+      (b) => (b.daily_rate || 0) >= filters.minRate && (b.daily_rate || 0) <= filters.maxRate
+    )
 
     return filtered
   }
