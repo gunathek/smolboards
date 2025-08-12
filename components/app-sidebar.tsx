@@ -14,7 +14,6 @@ import { NavUser } from "@/components/nav-user"
 import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { LogoSmolboards } from "@/components/logo"
 import {
   Sidebar,
   SidebarContent,
