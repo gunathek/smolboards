@@ -20,7 +20,7 @@ export default function Home() {
         data: { user },
       } = await supabase.auth.getUser()
       if (user) {
-        router.push("/dashboard")
+        router.push("/home")
       }
     }
 
@@ -31,7 +31,7 @@ export default function Home() {
       data: { subscription },
     } = supabase?.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        router.push("/dashboard")
+        router.push("/home")
       }
     }) || { data: { subscription: null } }
 

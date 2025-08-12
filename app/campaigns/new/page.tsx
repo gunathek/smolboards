@@ -110,7 +110,7 @@ export default function NewCampaignPage() {
   }
 
   const handleBack = () => {
-    router.push("/dashboard")
+    router.push("/home")
   }
 
   const isStepComplete = (stepId: number) => {

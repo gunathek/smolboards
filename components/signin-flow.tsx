@@ -320,7 +320,7 @@ export const SignInPage = ({ className }: SignInPageProps) => {
         data: { user },
       } = await supabase.auth.getUser()
       if (user) {
-        router.push("/dashboard")
+        router.push("/home")
       }
     }
 
@@ -340,7 +340,7 @@ export const SignInPage = ({ className }: SignInPageProps) => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}/home`,
         },
       })
 
@@ -447,7 +447,7 @@ export const SignInPage = ({ className }: SignInPageProps) => {
         }, 50)
 
         setTimeout(() => {
-          router.push("/dashboard")
+          router.push("/home")
         }, 2000)
       }
     } catch (err) {
@@ -755,7 +755,7 @@ export const SignInPage = ({ className }: SignInPageProps) => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 1 }}
-                      onClick={() => router.push("/dashboard")}
+                      onClick={() => router.push("/home")}
                       className="w-full rounded-full bg-white text-black font-medium py-3 hover:bg-white/90 transition-colors"
                     >
                       Continue to Login
