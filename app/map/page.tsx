@@ -3,15 +3,15 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
-import { ArrowLeft, Search, Plus, Minus, MapPin, AlertCircle } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Search, ChevronDown } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { BillboardSidebar, type BillboardFilters } from "@/components/billboard-sidebar"
-import { BookingDialog } from "@/components/booking-dialog"
 import { supabase, type Billboard, initializeBillboards, createSampleBillboards } from "@/lib/supabase"
-import { MapStats } from "@/components/map-stats"
+import type { User } from "@supabase/supabase-js"
+
+import { BillboardListSidebar } from "@/components/billboard-list-sidebar"
+import { BillboardDetailsSidebar } from "@/components/billboard-details-sidebar"
+import { SelectionFloatingButton } from "@/components/selection-floating-button"
+import { LoginBanner } from "@/components/login-banner"
 
 // Fallback billboard data in case Supabase is not available
 const fallbackBillboards: Billboard[] = [
@@ -33,7 +33,7 @@ const fallbackBillboards: Billboard[] = [
     end_hour: 22,
     supported_media: "video,image",
     impressions: 5000,
-    cost_per_play: 0.50,
+    cost_per_play: 0.5,
     hourly_rate: 25.0,
     daily_rate: 150.0,
     monthly_rate: 4000.0,
@@ -60,7 +60,7 @@ const fallbackBillboards: Billboard[] = [
     end_hour: 24,
     supported_media: "video,image",
     impressions: 3500,
-    cost_per_play: 0.40,
+    cost_per_play: 0.4,
     hourly_rate: 20.0,
     daily_rate: 120.0,
     monthly_rate: 3200.0,
@@ -141,7 +141,7 @@ const fallbackBillboards: Billboard[] = [
     end_hour: 23,
     supported_media: "video,image",
     impressions: 10000,
-    cost_per_play: 0.60,
+    cost_per_play: 0.6,
     hourly_rate: 30.0,
     daily_rate: 180.0,
     monthly_rate: 4800.0,
@@ -175,32 +175,54 @@ export default function KoramangalaMap() {
   const [billboards, setBillboards] = useState<Billboard[]>([])
   const [visibleBillboards, setVisibleBillboards] = useState<Billboard[]>([])
   const [selectedBillboard, setSelectedBillboard] = useState<Billboard | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [selectedBillboards, setSelectedBillboards] = useState<Set<string>>(new Set())
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [usingFallbackData, setUsingFallbackData] = useState(false)
-  const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
-  const [bookingBillboard, setBookingBillboard] = useState<Billboard | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
   const router = useRouter()
-  const [filters, setFilters] = useState<BillboardFilters>({
-    category: "all",
-    status: "all",
-    minRate: 0,
-    maxRate: 1000,
-    showOnlyVisible: false,
-  })
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Listen for booking messages from map popups
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (!supabase) {
+        setAuthLoading(false)
+        return
+      }
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        setUser(user)
+      } catch (error) {
+        console.error("Error checking auth:", error)
+      } finally {
+        setAuthLoading(false)
+      }
+    }
+
+    checkAuth()
+
+    if (supabase) {
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event, session) => {
+        setUser(session?.user || null)
+      })
+
+      return () => subscription?.unsubscribe()
+    }
+  }, [])
+
+  // Listen for billboard selection messages from map
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === "openBooking" && event.data.billboardId) {
-        const billboard = billboards.find((b) => b.id === event.data.billboardId)
-        if (billboard) {
-          setBookingBillboard(billboard)
-          setBookingDialogOpen(true)
-        }
-      } else if (event.data.type === "selectBillboard" && event.data.billboardId) {
+      if (event.data.type === "selectBillboard") {
         const billboard = billboards.find((b) => b.id === event.data.billboardId)
         if (billboard) {
           handleBillboardSelect(billboard)
@@ -246,7 +268,7 @@ export default function KoramangalaMap() {
       const { data, error: fetchError } = await supabase
         .from("billboards")
         .select("*")
-        .eq('showup', true) // Filter by showup = true
+        .eq("showup", true) // Filter by showup = true
         .order("created_at", { ascending: false })
 
       if (fetchError) {
@@ -274,10 +296,9 @@ export default function KoramangalaMap() {
           setUsingFallbackData(true)
         }
       } else {
-        const shownBillboards = data.filter(b => b.showup)
-        const maxRate = Math.max(...shownBillboards.map((b) => b.daily_rate), 1000);
+        const shownBillboards = data.filter((b) => b.showup)
+        const maxRate = Math.max(...shownBillboards.map((b) => b.daily_rate), 1000)
         setBillboards(shownBillboards)
-        setFilters(prev => ({...prev, maxRate: maxRate}));
         // console.log("Fetched billboards:", shownBillboards) // Log fetched data
         // console.log(`Loaded ${shownBillboards.length} billboards from database`)
       }
@@ -297,11 +318,7 @@ export default function KoramangalaMap() {
 
     const [[south, west], [north, east]] = mapBounds
     const visible = billboards.filter(
-      (billboard) =>
-        billboard.lat >= south &&
-        billboard.lat <= north &&
-        billboard.lng >= west &&
-        billboard.lng <= east,
+      (billboard) => billboard.lat >= south && billboard.lat <= north && billboard.lng >= west && billboard.lng <= east,
     )
 
     setVisibleBillboards(visible)
@@ -369,11 +386,23 @@ export default function KoramangalaMap() {
   }
 
   const handleBillboardSelect = (billboard: Billboard) => {
-    console.log("Billboard selected:", billboard.name) // Debug log
     setSelectedBillboard(billboard)
     setMapCenter([billboard.lat, billboard.lng])
     setMapZoom(16)
-    setSidebarOpen(false) // Close sidebar on mobile after selection
+    setRightSidebarOpen(true)
+    setLeftSidebarOpen(false) // Close left sidebar on mobile
+  }
+
+  const handleBillboardToggleSelection = (billboardId: string) => {
+    setSelectedBillboards((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(billboardId)) {
+        newSet.delete(billboardId)
+      } else {
+        newSet.add(billboardId)
+      }
+      return newSet
+    })
   }
 
   const handleMapBoundsChange = (bounds: [[number, number], [number, number]]) => {
@@ -384,169 +413,122 @@ export default function KoramangalaMap() {
     fetchBillboards()
   }
 
-  if (loading) {
+  const handleCloseRightSidebar = () => {
+    setRightSidebarOpen(false)
+    setSelectedBillboard(null)
+  }
+
+  const handleBackdropClick = () => {
+    if (rightSidebarOpen) {
+      handleCloseRightSidebar()
+    }
+  }
+
+  if (loading || authLoading) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading billboard data...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="relative w-full h-screen overflow-hidden">
-      {/* Booking Dialog */}
-      <BookingDialog billboard={bookingBillboard} open={bookingDialogOpen} onOpenChange={setBookingDialogOpen} />
-
-      {/* Error Alert */}
-      {(error || usingFallbackData) && (
-        <div
-          className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1002] w-full max-w-md px-4"
-          data-error-alert
-        >
-          <Alert className="bg-yellow-50 border-yellow-200">
-            <AlertCircle className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-yellow-800">
-              {error || "Using demo data. Connect to Supabase for live data."}
-              {error && (
-                <Button onClick={handleRetry} size="sm" variant="outline" className="ml-2 h-6 text-xs bg-transparent">
-                  Retry
-                </Button>
-              )}
-            </AlertDescription>
-          </Alert>
+    <div className="relative h-screen overflow-hidden bg-gray-100">
+      {/* Search Bar */}
+      <div
+        className={`absolute top-4 left-1/2 transform -translate-x-1/2 z-[800] ${rightSidebarOpen ? "blur-sm" : ""}`}
+      >
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            type="text"
+            placeholder="Search for a city or address..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-20 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">IN</span>
+            <ChevronDown className="h-3 w-3 text-gray-400" />
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* Billboard Sidebar */}
-      <div data-sidebar>
-        <BillboardSidebar
+      {/* Left Sidebar - Billboard List */}
+      <div className={rightSidebarOpen ? "blur-sm" : ""}>
+        <BillboardListSidebar
           billboards={billboards}
           visibleBillboards={visibleBillboards}
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          isOpen={true} // Always keep sidebar open
+          onToggle={() => {}} // Remove toggle functionality
           onBillboardSelect={handleBillboardSelect}
+          onBillboardToggleSelection={handleBillboardToggleSelection}
+          selectedBillboards={selectedBillboards}
           selectedBillboard={selectedBillboard}
-          onFilterChange={setFilters}
-          filters={filters}
+          isAuthenticated={!!user}
         />
       </div>
 
-      {/* Map Component */}
+      {/* Right Sidebar - Billboard Details */}
+      <BillboardDetailsSidebar
+        billboard={selectedBillboard}
+        isOpen={rightSidebarOpen}
+        onClose={handleCloseRightSidebar}
+        onToggleSelection={handleBillboardToggleSelection}
+        isSelected={selectedBillboard ? selectedBillboards.has(selectedBillboard.id) : false}
+        isAuthenticated={!!user}
+      />
+
+      {rightSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[900] transition-all duration-300"
+          onClick={handleBackdropClick}
+        />
+      )}
+
+      {/* Map Container */}
       <div
-        className={`transition-all duration-300 relative z-0 ${sidebarOpen ? "md:ml-80" : "md:ml-80"}`}
-        data-map-container
+        className={`transition-all duration-300 relative z-0 ml-80 ${
+          rightSidebarOpen ? "md:mr-96 blur-sm" : "md:mr-0"
+        }`}
       >
         <MapComponent
           center={mapCenter}
           zoom={mapZoom}
           billboards={billboards}
           selectedBillboard={selectedBillboard}
+          selectedBillboards={selectedBillboards}
           onBoundsChange={handleMapBoundsChange}
-          filters={filters}
         />
       </div>
 
-      {/* Floating Back Button - Top Left */}
+      {/* Selection Button / Login Banner */}
       <div
-        className={`absolute top-4 z-[1000] transition-all duration-300 ${
-          error || usingFallbackData ? "top-20" : "top-4"
-        } ${sidebarOpen ? "left-[21rem]" : "left-[21rem]"} md:left-[21rem]`}
-        data-back-button
+        className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[800] ${rightSidebarOpen ? "blur-sm" : ""}`}
       >
-        <Button
-          onClick={handleBack}
-          size="icon"
-          className="h-10 w-10 rounded-full shadow-lg bg-black hover:bg-white-50 text-white-700 border border-gray-200"
-          variant="default"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span className="sr-only">Go back</span>
-        </Button>
-      </div>
-
-      {/* Floating Search Bar - Top Center */}
-      <div
-        className={`absolute left-1/2 transform -translate-x-1/2 z-[1000] w-full max-w-md px-4 transition-all duration-300 ${
-          error || usingFallbackData ? "top-20" : "top-4"
-        }`}
-        data-search-container
-      >
-        <div className="relative">
-          <Card className="p-0 shadow-lg border-gray-200">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search in Koramangala..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-3 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-lg"
-                onFocus={() => searchQuery && setShowResults(true)}
+        {!authLoading && (
+          <>
+            {user ? (
+              <SelectionFloatingButton
+                selectedCount={selectedBillboards.size}
+                onViewSelection={() => {
+                  // Handle view selection
+                  console.log("View selection clicked")
+                }}
               />
-            </div>
-          </Card>
-
-          {/* Search Results Dropdown */}
-          {showResults && searchResults.length > 0 && (
-            <Card className="absolute top-full mt-2 w-full shadow-lg border-gray-200 max-h-60 overflow-y-auto z-[1001]">
-              <div className="p-2">
-                {searchResults.map((result, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleSearchSelect(result)}
-                    className="w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors flex items-start gap-3"
-                  >
-                    <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm text-gray-900 truncate">
-                        {result.display_name.split(",")[0]}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate">
-                        {result.display_name.split(",").slice(1, 3).join(", ")}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
-        </div>
+            ) : (
+              <LoginBanner
+                onLogin={() => {
+                  window.location.href = "/auth"
+                }}
+              />
+            )}
+          </>
+        )}
       </div>
-
-      {/* Floating Zoom Controls - Top Right */}
-      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2" data-zoom-controls>
-        <Button
-          onClick={handleZoomIn}
-          size="icon"
-          className="h-10 w-10 rounded-lg shadow-lg bg-white hover:bg-gray-50 text-gray-700 border border-gray-200"
-          variant="outline"
-        >
-          <Plus className="h-4 w-4" />
-          <span className="sr-only">Zoom in</span>
-        </Button>
-        <Button
-          onClick={handleZoomOut}
-          size="icon"
-          className="h-10 w-10 rounded-lg shadow-lg bg-white hover:bg-gray-50 text-gray-700 border border-gray-200"
-          variant="outline"
-        >
-          <Minus className="h-4 w-4" />
-          <span className="sr-only">Zoom out</span>
-        </Button>
-      </div>
-
-      {/* Floating Map Stats - Bottom Right */}
-      <div className="absolute bottom-4 right-4 z-[1000]" data-stats-container>
-        <MapStats visibleCount={visibleBillboards.length} totalCount={billboards.length} />
-      </div>
-
-      {/* Click overlay to close search results */}
-      {showResults && <div className="absolute inset-0 z-[999]" onClick={() => setShowResults(false)} />}
-
-      
     </div>
   )
 }

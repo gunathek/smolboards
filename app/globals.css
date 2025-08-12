@@ -208,3 +208,32 @@
     -webkit-backdrop-filter: blur(2px);
   }
 }
+
+/* Custom scrollbar styling for billboard sidebar */
+.billboard-sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(71, 85, 105) rgb(30, 41, 59);
+}
+
+.billboard-sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.billboard-sidebar-scroll::-webkit-scrollbar-track {
+  background: rgb(30, 41, 59);
+  border-radius: 3px;
+}
+
+.billboard-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgb(71, 85, 105);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.billboard-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(100, 116, 139);
+}
+
+.billboard-sidebar-scroll::-webkit-scrollbar-thumb:active {
+  background: rgb(148, 163, 184);
+}

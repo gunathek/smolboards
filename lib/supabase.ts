@@ -38,29 +38,6 @@ export type Billboard = {
   updated_at: string
 }
 
-export type Booking = {
-  id: string
-  billboard_id: string
-  booking_date: string
-  start_hour: number
-  end_hour: number
-  customer_name?: string
-  customer_email?: string
-  customer_phone?: string
-  booking_status: "confirmed" | "pending" | "cancelled"
-  total_amount?: number
-  notes?: string
-  created_at: string
-  updated_at: string
-}
-
-export type BookingSlot = {
-  date: string
-  hour: number
-  isBooked: boolean
-  booking?: Booking
-}
-
 // Helper function to check if table exists and create sample data if needed
 export async function initializeBillboards() {
   if (!supabase) {
@@ -80,94 +57,6 @@ export async function initializeBillboards() {
   } catch (error) {
     console.error("Error checking billboards table:", error)
     return { success: false, error: "Failed to check table existence" }
-  }
-}
-
-// Type for the response from getBillboardBookings
-type GetBillboardBookingsResponse = { success: true; data: Booking[] } | { success: false; error: string; data?: never }
-
-// Function to get bookings for a specific billboard and date range
-export async function getBillboardBookings(
-  billboardId: string,
-  startDate: string,
-  endDate: string,
-): Promise<GetBillboardBookingsResponse> {
-  if (!supabase) {
-    return { success: true, data: [] } // Return empty data instead of error
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("billboard_id", billboardId)
-      .gte("booking_date", startDate)
-      .lte("booking_date", endDate)
-      .in("booking_status", ["confirmed", "pending"])
-
-    if (error) {
-      console.warn("Error fetching bookings:", error)
-      // Return empty data instead of error to allow booking to proceed
-      return { success: true, data: [] }
-    }
-
-    return { success: true, data: data || [] }
-  } catch (error) {
-    console.warn("Error fetching bookings:", error)
-    return { success: true, data: [] }
-  }
-}
-
-// Function to create a new booking
-export async function createBooking(booking: Omit<Booking, "id" | "created_at" | "updated_at">) {
-  if (!supabase) {
-    return { success: false, error: "Database connection not available. Please check your configuration." }
-  }
-
-  try {
-    const { data, error } = await supabase.from("bookings").insert([booking]).select().single()
-
-    if (error) {
-      console.error("Error creating booking:", error)
-      if (error.message.includes("relation") || error.message.includes("does not exist")) {
-        return { success: false, error: "Booking system not set up. Please run the database setup script first." }
-      }
-      return { success: false, error: `Booking failed: ${error.message}` }
-    }
-
-    return { success: true, data }
-  } catch (error) {
-    console.error("Error creating booking:", error)
-    return { success: false, error: "An unexpected error occurred while creating the booking." }
-  }
-}
-
-// Function to check if bookings table exists
-export async function initializeBookings() {
-  if (!supabase) {
-    return { success: false, error: "Supabase not configured" }
-  }
-
-  try {
-    // Try a simple query to check if we can access the bookings table
-    const { error } = await supabase.from("bookings").select("id").limit(1)
-
-    if (error) {
-      // If it's a table not found error, that's expected and we can handle it
-      if (error.message.includes("relation") || error.message.includes("does not exist")) {
-        console.warn("Bookings table does not exist yet")
-        return { success: false, error: "Bookings table not found - please run the SQL script" }
-      }
-      // For other errors, still return success to allow the UI to work
-      console.warn("Bookings table check warning:", error.message)
-      return { success: true, data: [] }
-    }
-
-    return { success: true, data: [] }
-  } catch (error) {
-    console.warn("Error checking bookings table:", error)
-    // Return success to allow UI to function
-    return { success: true, data: [] }
   }
 }
 
