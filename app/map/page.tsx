@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, useRef, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
-import { Search, ChevronDown } from "lucide-react"
+import { Search, ChevronDown, ArrowLeft, ArrowRight } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import { supabase, type Billboard, initializeBillboards, createSampleBillboards } from "@/lib/supabase"
 import type { User } from "@supabase/supabase-js"
 
@@ -165,7 +167,15 @@ const MapComponent = dynamic(() => import("../map-component"), {
   ),
 })
 
-export default function KoramangalaMap() {
+function MapPageContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Check if we're in campaign mode
+  const isCampaignMode = searchParams.get("campaign") === "true"
+  const currentStep = Number.parseInt(searchParams.get("step") || "2")
+  const campaignName = searchParams.get("name") || ""
+
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [showResults, setShowResults] = useState(false)
@@ -184,8 +194,18 @@ export default function KoramangalaMap() {
   const [user, setUser] = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
-  const router = useRouter()
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Campaign flow steps
+  const steps = [
+    { id: 1, name: "Name Campaign" },
+    { id: 2, name: "Select Boards" },
+    { id: 3, name: "Schedule & Budget" },
+    { id: 4, name: "Upload Creatives" },
+    { id: 5, name: "Review Summary" },
+  ]
+
+  const progress = (currentStep / steps.length) * 100
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -297,10 +317,7 @@ export default function KoramangalaMap() {
         }
       } else {
         const shownBillboards = data.filter((b) => b.showup)
-        const maxRate = Math.max(...shownBillboards.map((b) => b.daily_rate), 1000)
         setBillboards(shownBillboards)
-        // console.log("Fetched billboards:", shownBillboards) // Log fetched data
-        // console.log(`Loaded ${shownBillboards.length} billboards from database`)
       }
     } catch (error) {
       console.error("Error in fetchBillboards:", error)
@@ -373,16 +390,13 @@ export default function KoramangalaMap() {
     setShowResults(false)
   }
 
-  const handleZoomIn = () => {
-    setMapZoom((prev) => Math.min(prev + 1, 18))
-  }
-
-  const handleZoomOut = () => {
-    setMapZoom((prev) => Math.max(prev - 1, 10))
-  }
-
   const handleBack = () => {
-    router.push("/")
+    if (isCampaignMode) {
+      // Go back to previous step in campaign flow
+      router.push("/campaigns/new")
+    } else {
+      router.push("/")
+    }
   }
 
   const handleBillboardSelect = (billboard: Billboard) => {
@@ -409,10 +423,6 @@ export default function KoramangalaMap() {
     setMapBounds(bounds)
   }
 
-  const handleRetry = () => {
-    fetchBillboards()
-  }
-
   const handleCloseRightSidebar = () => {
     setRightSidebarOpen(false)
     setSelectedBillboard(null)
@@ -422,6 +432,18 @@ export default function KoramangalaMap() {
     if (rightSidebarOpen) {
       handleCloseRightSidebar()
     }
+  }
+
+  const handleCampaignNext = () => {
+    if (selectedBillboards.size > 0) {
+      // Navigate to Schedule & Budget step with selected boards
+      const selectedBoardIds = Array.from(selectedBillboards).join(",")
+      router.push(`/campaigns/new?step=3&name=${encodeURIComponent(campaignName)}&boards=${selectedBoardIds}`)
+    }
+  }
+
+  const handleCampaignPrevious = () => {
+    router.push("/campaigns/new")
   }
 
   if (loading || authLoading) {
@@ -462,13 +484,15 @@ export default function KoramangalaMap() {
         <BillboardListSidebar
           billboards={billboards}
           visibleBillboards={visibleBillboards}
-          isOpen={true} // Always keep sidebar open
-          onToggle={() => {}} // Remove toggle functionality
+          isOpen={true}
+          onToggle={() => {}}
           onBillboardSelect={handleBillboardSelect}
           onBillboardToggleSelection={handleBillboardToggleSelection}
           selectedBillboards={selectedBillboards}
           selectedBillboard={selectedBillboard}
           isAuthenticated={!!user}
+          isCampaignMode={isCampaignMode}
+          onCampaignBack={handleBack}
         />
       </div>
 
@@ -493,7 +517,7 @@ export default function KoramangalaMap() {
       <div
         className={`transition-all duration-300 relative z-0 ml-80 ${
           rightSidebarOpen ? "md:mr-96 blur-sm" : "md:mr-0"
-        }`}
+        } ${isCampaignMode ? "pb-20" : ""}`}
       >
         <MapComponent
           center={mapCenter}
@@ -507,7 +531,7 @@ export default function KoramangalaMap() {
 
       {/* Selection Button / Login Banner */}
       <div
-        className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[800] ${rightSidebarOpen ? "blur-sm" : ""}`}
+        className={`fixed ${isCampaignMode ? "bottom-24" : "bottom-4"} left-1/2 transform -translate-x-1/2 z-[800] ${rightSidebarOpen ? "blur-sm" : ""}`}
       >
         {!authLoading && (
           <>
@@ -515,7 +539,6 @@ export default function KoramangalaMap() {
               <SelectionFloatingButton
                 selectedCount={selectedBillboards.size}
                 onViewSelection={() => {
-                  // Handle view selection
                   console.log("View selection clicked")
                 }}
               />
@@ -529,6 +552,55 @@ export default function KoramangalaMap() {
           </>
         )}
       </div>
+
+      {/* Campaign Progress Bar - Only show in campaign mode */}
+      {isCampaignMode && (
+        <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 z-[850]">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="ghost"
+                onClick={handleCampaignPrevious}
+                className="flex items-center gap-2 text-gray-400 hover:text-white"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Previous
+              </Button>
+
+              <div className="text-sm text-gray-400">
+                Step {currentStep} of {steps.length} - Select Boards
+              </div>
+
+              <Button
+                onClick={handleCampaignNext}
+                disabled={selectedBillboards.size === 0}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save & Continue
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+            <Progress value={progress} className="w-full h-2" />
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+export default function KoramangalaMap() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full h-screen flex items-center justify-center bg-gray-100">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <MapPageContent />
+    </Suspense>
   )
 }

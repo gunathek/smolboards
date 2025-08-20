@@ -1,440 +1,330 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { X, ArrowRight, Check, Info, ArrowLeft, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
+import { X, ArrowLeft, ArrowRight, ChevronDown, Calendar, DollarSign, Clock } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-type CampaignStep = {
-  id: number
-  title: string
-  description: string
-  completed: boolean
-  current: boolean
-}
-
-type CampaignData = {
-  name: string
-  selectionMethod: "hand-select" | "bulk-select" | null
-}
-
-const CAMPAIGN_STEPS: CampaignStep[] = [
-  { id: 1, title: "Name Campaign", description: "Give your campaign a name", completed: false, current: true },
-  {
-    id: 2,
-    title: "Selection Method",
-    description: "Choose how to select billboards",
-    completed: false,
-    current: false,
-  },
-  { id: 3, title: "Select Boards", description: "Choose your billboards", completed: false, current: false },
-  { id: 4, title: "Schedule & Budget", description: "Set timing and budget", completed: false, current: false },
-  { id: 5, title: "Upload Creatives", description: "Add your ad content", completed: false, current: false },
-  { id: 6, title: "Review Summary", description: "Final review and launch", completed: false, current: false },
+const steps = [
+  { id: 1, name: "Name Campaign", description: "Give your campaign a memorable name" },
+  { id: 2, name: "Select Boards", description: "Pick your billboard locations" },
+  { id: 3, name: "Schedule & Budget", description: "Set timing and budget" },
+  { id: 4, name: "Upload Creatives", description: "Add your creative assets" },
+  { id: 5, name: "Review Summary", description: "Review and launch campaign" },
 ]
 
 export default function NewCampaignPage() {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState(1)
-  const [steps, setSteps] = useState(CAMPAIGN_STEPS)
-  const [campaignData, setCampaignData] = useState<CampaignData>({
-    name: "",
-    selectionMethod: null,
+  const searchParams = useSearchParams()
+
+  const [currentStep, setCurrentStep] = useState(() => {
+    const step = searchParams.get("step")
+    return step ? Number.parseInt(step) : 1
+  })
+
+  const [campaignName, setCampaignName] = useState(() => {
+    const name = searchParams.get("name")
+    return name ? decodeURIComponent(name) : ""
+  })
+
+  const [selectedBoards, setSelectedBoards] = useState<string[]>(() => {
+    const boards = searchParams.get("boards")
+    return boards ? boards.split(",") : []
   })
 
   const currentStepData = steps.find((step) => step.id === currentStep)
-  const measurableStepsCount = CAMPAIGN_STEPS.length - 1
-  const completedMeasurableSteps = Math.min(currentStep - 1, measurableStepsCount)
-  const progress = (completedMeasurableSteps / measurableStepsCount) * 100
-
-  const updateStepStatus = (stepId: number, completed: boolean, current: boolean) => {
-    setSteps((prev) =>
-      prev.map((step) => ({
-        ...step,
-        completed: step.id < stepId ? true : step.id === stepId ? completed : false,
-        current: step.id === stepId ? current : false,
-      })),
-    )
-  }
-
-  const canProceedToStep = (stepId: number) => {
-    // Can always go to step 1
-    if (stepId === 1) return true
-
-    // To proceed to stepId, all steps from 1 to (stepId - 1) must be completed.
-    for (let i = 1; i < stepId; i++) {
-      if (!isStepComplete(i)) {
-        return false
-      }
-    }
-    return true
-  }
-
-  const handleStepChange = (stepId: number) => {
-    if (canProceedToStep(stepId)) {
-      setCurrentStep(stepId)
-      updateStepStatus(stepId, false, true)
-    }
-  }
+  const progress = (currentStep / steps.length) * 100
 
   const handleNext = () => {
-    let canProceed = false
-
-    if (currentStep === 1 && campaignData.name.trim()) {
-      canProceed = true
-      updateStepStatus(1, true, false)
-    } else if (currentStep === 2 && campaignData.selectionMethod) {
-      canProceed = true
-      updateStepStatus(2, true, false)
-    }
-
-    if (canProceed && currentStep < steps.length) {
-      const nextStep = currentStep + 1
-      setCurrentStep(nextStep)
-      updateStepStatus(nextStep, false, true)
+    if (currentStep === 1 && campaignName.trim()) {
+      // Navigate to map page for board selection
+      router.push(`/map?campaign=true&step=2&name=${encodeURIComponent(campaignName)}`)
+    } else if (currentStep < steps.length) {
+      setCurrentStep(currentStep + 1)
     }
   }
 
   const handlePrevious = () => {
     if (currentStep > 1) {
-      const prevStep = currentStep - 1
-      setCurrentStep(prevStep)
-      updateStepStatus(prevStep, false, true)
+      setCurrentStep(currentStep - 1)
     }
   }
 
-  const handleBack = () => {
-    router.push("/home")
+  const handleClose = () => {
+    router.push("/campaigns")
   }
 
-  const isStepComplete = (stepId: number) => {
-    if (stepId === 1) return campaignData.name.trim() !== ""
-    if (stepId === 2) return campaignData.selectionMethod !== null
-    return false
+  const handleStepSelect = (stepId: number) => {
+    // Only allow navigation to completed steps or the next step
+    if (stepId === 1 || (stepId === 2 && campaignName.trim())) {
+      if (stepId === 2) {
+        router.push(`/map?campaign=true&step=2&name=${encodeURIComponent(campaignName)}`)
+      } else {
+        setCurrentStep(stepId)
+      }
+    }
   }
-
-  const canProceedFromCurrentStep = isStepComplete(currentStep)
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="h-full bg-black text-white flex flex-col">
       {/* Header */}
-      <div className="border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button onClick={handleBack} variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-                <X className="h-4 w-4" />
-              </Button>
-              <div>
-                <h1 className="text-xl font-semibold">Create New Campaign</h1>
-                <p className="text-sm text-gray-400">
-                  Step {currentStep} of {steps.length}
-                </p>
-              </div>
-            </div>
+      <header className="flex items-center justify-between p-6 border-b border-gray-800">
+        <div className="flex items-center gap-4">
+          <button onClick={handleClose} className="p-2 hover:bg-gray-800 rounded-lg transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-xl font-semibold">Create New Campaign</h1>
+            <p className="text-sm text-gray-400">
+              Step {currentStep} of {steps.length}
+            </p>
+          </div>
+        </div>
 
-            {/* Step Navigation Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="bg-gray-900 border-gray-700 hover:bg-gray-800">
-                  {currentStepData?.title}
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 bg-gray-900 border-gray-700">
-                {steps.map((step) => (
+        <div className="flex items-center gap-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="bg-gray-800 border-gray-700 hover:bg-gray-700 text-white">
+                {currentStepData?.name}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 bg-gray-800 border-gray-700">
+              {steps.map((step) => {
+                const isAccessible = step.id === 1 || (step.id === 2 && campaignName.trim()) || step.id < currentStep
+                return (
                   <DropdownMenuItem
                     key={step.id}
-                    onClick={() => handleStepChange(step.id)}
-                    disabled={!canProceedToStep(step.id)}
-                    className="flex items-center gap-3 p-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handleStepSelect(step.id)}
+                    disabled={!isAccessible}
+                    className={`flex items-center gap-3 p-3 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      step.id === currentStep ? "bg-gray-700" : ""
+                    }`}
                   >
                     <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                        step.completed
-                          ? "bg-green-500 text-white"
-                          : step.current
-                            ? "bg-white text-black"
-                            : "bg-gray-700 text-gray-400"
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
+                        step.id === currentStep
+                          ? "bg-blue-600 text-white"
+                          : step.id < currentStep
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-600 text-gray-300"
                       }`}
                     >
-                      {step.completed ? <Check className="h-3 w-3" /> : step.id}
+                      {step.id}
                     </div>
                     <div className="flex-1">
-                      <div className="font-medium">{step.title}</div>
+                      <div className="font-medium">{step.name}</div>
                       <div className="text-xs text-gray-400">{step.description}</div>
                     </div>
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </div>
+      </header>
 
-      {/* Progress Bar */}
-      <div className="border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Progress value={progress} className="flex-1 h-2" />
-            <span className="text-sm text-gray-400">{Math.round(progress)}%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-12 pb-32">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          {/* Main Content Area */}
-          <div className="lg:col-span-2">
-            {currentStep === 1 && (
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-4xl font-bold mb-4">Give it a name.</h2>
-                  <p className="text-gray-400 text-lg">
-                    Choose a memorable name for your campaign that helps you identify it later.
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <Input
-                    value={campaignData.name}
-                    onChange={(e) => setCampaignData((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter campaign name..."
-                    className="text-2xl h-16 bg-gray-900 border-gray-700 focus:border-green-500 focus:ring-green-500"
-                    autoFocus
-                  />
-                  <p className="text-sm text-gray-500">
-                    Campaign names should be descriptive and unique within your account.
-                  </p>
-                </div>
+      {/* Content */}
+      <main className="flex-1 flex items-center justify-center p-6">
+        <div className="max-w-2xl w-full">
+          {currentStep === 1 && (
+            <div className="text-center space-y-6">
+              <div>
+                <h2 className="text-4xl font-bold mb-4">Give it a name.</h2>
+                <p className="text-gray-400 text-lg">
+                  Choose a memorable name for your campaign that helps you identify it later.
+                </p>
               </div>
-            )}
 
-            {currentStep === 2 && (
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-4xl font-bold mb-4">{"How'd you like to pick your boards?"}</h2>
-                  <p className="text-gray-400 text-lg">
-                    Choose the method that best fits your campaign strategy and requirements.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Hand-select Option */}
-                  <Card
-                    className={`p-6 cursor-pointer transition-all duration-200 ${
-                      campaignData.selectionMethod === "hand-select"
-                        ? "bg-gray-900 border-green-500 border-2"
-                        : "bg-gray-900 border-gray-700 hover:border-gray-600"
-                    }`}
-                    onClick={() => setCampaignData((prev) => ({ ...prev, selectionMethod: "hand-select" }))}
-                  >
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xl font-semibold">Hand-select Boards</h3>
-                        {campaignData.selectionMethod === "hand-select" && (
-                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                            <Check className="h-4 w-4 text-white" />
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-gray-400">
-                        Best for being super selective about which boards you want to target.
-                      </p>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-green-400">
-                          <Check className="h-4 w-4" />
-                          See all available boards on a map
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-green-400">
-                          <Check className="h-4 w-4" />
-                          Filter boards to find the one(s) you want
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-green-400">
-                          <Check className="h-4 w-4" />
-                          See each board in detail
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-green-400">
-                          <Check className="h-4 w-4" />
-                          Upload custom data overlays to map
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 pt-2 border-t border-gray-700">
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <div className="w-4 h-4 bg-gray-600 rounded-full" />
-                          Slow for address targeting/geofencing
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Bulk-select Option */}
-                  <Card
-                    className={`p-6 cursor-pointer transition-all duration-200 relative ${
-                      campaignData.selectionMethod === "bulk-select"
-                        ? "bg-gray-900 border-green-500 border-2"
-                        : "bg-gray-900 border-gray-700 hover:border-gray-600"
-                    }`}
-                    onClick={() => setCampaignData((prev) => ({ ...prev, selectionMethod: "bulk-select" }))}
-                  >
-                    <Badge className="absolute top-4 right-4 bg-green-500 text-black">Advanced</Badge>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between pr-20">
-                        <h3 className="text-xl font-semibold">Bulk-select Boards</h3>
-                        {campaignData.selectionMethod === "bulk-select" && (
-                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                            <Check className="h-4 w-4 text-white" />
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-gray-400">
-                        Give me a bunch of locations and set a targeting radius. Best for when you have addresses you
-                        need to target.
-                      </p>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-green-400">
-                          <Check className="h-4 w-4" />
-                          Upload CSV of addresses
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-green-400">
-                          <Check className="h-4 w-4" />
-                          Geofence/target multiple locations easily
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-green-400">
-                          <Check className="h-4 w-4" />
-                          Quick for address-targeted campaigns
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 pt-2 border-t border-gray-700">
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <div className="w-4 h-4 bg-gray-600 rounded-full" />
-                          No granular board selection
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <div className="w-4 h-4 bg-gray-600 rounded-full" />
-                          No map data overlays
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
+              <div className="space-y-4">
+                <Input
+                  placeholder="Enter campaign name..."
+                  value={campaignName}
+                  onChange={(e) => setCampaignName(e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-500 text-lg py-4 px-6"
+                  autoFocus
+                />
+                <p className="text-sm text-gray-500">
+                  Campaign names should be descriptive and unique within your account.
+                </p>
               </div>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <Card className="p-6 bg-gray-900 border-gray-700 sticky top-6">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-semibold mb-2">Campaign Progress</h3>
-                  <div className="space-y-3">
-                    {steps.map((step) => (
-                      <div key={step.id} className="flex items-center gap-3">
-                        <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                            step.completed
-                              ? "bg-green-500 text-white"
-                              : step.current
-                                ? "bg-white text-black"
-                                : "bg-gray-700 text-gray-400"
-                          }`}
-                        >
-                          {step.completed ? <Check className="h-3 w-3" /> : step.id}
-                        </div>
-                        <div className="flex-1">
-                          <div className={`text-sm ${step.current ? "text-white" : "text-gray-400"}`}>{step.title}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <Separator className="bg-gray-700" />
-
-                {currentStep === 1 && (
-                  <div>
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <Info className="h-4 w-4" />
-                      Naming Tips
-                    </h4>
-                    <ul className="text-sm text-gray-400 space-y-1">
-                      <li>• Use descriptive names</li>
-                      <li>• Include location or target audience</li>
-                      <li>• Keep it under 50 characters</li>
-                      <li>• Avoid special characters</li>
-                    </ul>
-                  </div>
-                )}
-
-                {currentStep === 2 && campaignData.selectionMethod === "hand-select" && (
-                  <div>
-                    <h4 className="font-medium mb-2">Hand-select Method</h4>
-                    <p className="text-sm text-gray-400">
-                      In the next step, {"you'll"} be able to pick the boards {"you're"} after by hand selecting them on
-                      a map. Yay.
-                    </p>
-                  </div>
-                )}
-
-                {currentStep === 2 && campaignData.selectionMethod === "bulk-select" && (
-                  <div>
-                    <h4 className="font-medium mb-2">Bulk-select Method</h4>
-                    <p className="text-sm text-gray-400">
-                      {"You'll"} be able to upload a CSV file with addresses and set targeting radius for efficient bulk
-                      selection.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
-        </div>
-      </div>
-
-      {/* Fixed Footer Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-gray-800 bg-black z-50">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                onClick={handlePrevious}
-                variant="outline"
-                disabled={currentStep === 1}
-                className="bg-gray-900 border-gray-700 hover:bg-gray-800 disabled:opacity-50"
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Previous
-              </Button>
             </div>
+          )}
 
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-400">
-                Step {currentStep} of {steps.length}
-              </span>
-              <Button
-                onClick={handleNext}
-                disabled={!canProceedFromCurrentStep}
-                className="bg-green-500 hover:bg-green-600 text-black disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {currentStep === steps.length ? "Launch Campaign" : "Save & Continue"}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-4xl font-bold mb-4">Schedule & Budget</h2>
+                <p className="text-gray-400 text-lg">Set your campaign timing and budget allocation.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Schedule Card */}
+                <Card className="bg-gray-900 border-gray-700">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-white">
+                      <Calendar className="h-5 w-5" />
+                      Campaign Schedule
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="start-date" className="text-gray-300">
+                        Start Date
+                      </Label>
+                      <Input id="start-date" type="date" className="bg-gray-800 border-gray-600 text-white" />
+                    </div>
+                    <div>
+                      <Label htmlFor="end-date" className="text-gray-300">
+                        End Date
+                      </Label>
+                      <Input id="end-date" type="date" className="bg-gray-800 border-gray-600 text-white" />
+                    </div>
+                    <div>
+                      <Label htmlFor="time-slots" className="text-gray-300">
+                        Time Slots
+                      </Label>
+                      <Select>
+                        <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                          <SelectValue placeholder="Select time slots" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-600">
+                          <SelectItem value="all-day">All Day (6 AM - 11 PM)</SelectItem>
+                          <SelectItem value="morning">Morning (6 AM - 12 PM)</SelectItem>
+                          <SelectItem value="afternoon">Afternoon (12 PM - 6 PM)</SelectItem>
+                          <SelectItem value="evening">Evening (6 PM - 11 PM)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Budget Card */}
+                <Card className="bg-gray-900 border-gray-700">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-white">
+                      <DollarSign className="h-5 w-5" />
+                      Budget Allocation
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="total-budget" className="text-gray-300">
+                        Total Budget
+                      </Label>
+                      <Input
+                        id="total-budget"
+                        type="number"
+                        placeholder="Enter total budget"
+                        className="bg-gray-800 border-gray-600 text-white"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="budget-type" className="text-gray-300">
+                        Budget Type
+                      </Label>
+                      <Select>
+                        <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                          <SelectValue placeholder="Select budget type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-600">
+                          <SelectItem value="daily">Daily Budget</SelectItem>
+                          <SelectItem value="total">Total Campaign Budget</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="p-4 bg-gray-800 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Clock className="h-4 w-4 text-green-400" />
+                        <span className="text-sm font-medium text-green-400">Estimated Reach</span>
+                      </div>
+                      <p className="text-2xl font-bold text-white">~50,000</p>
+                      <p className="text-sm text-gray-400">impressions per day</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Selected Boards Summary */}
+              {selectedBoards.length > 0 && (
+                <Card className="bg-gray-900 border-gray-700">
+                  <CardHeader>
+                    <CardTitle className="text-white">Selected Boards ({selectedBoards.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-400">
+                      You have selected {selectedBoards.length} billboard{selectedBoards.length !== 1 ? "s" : ""} for
+                      this campaign.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
-          </div>
+          )}
+
+          {currentStep === 4 && (
+            <div className="text-center space-y-6">
+              <div>
+                <h2 className="text-4xl font-bold mb-4">Upload Creatives</h2>
+                <p className="text-gray-400 text-lg">Add your creative assets for the campaign.</p>
+              </div>
+
+              <div className="p-8 border border-gray-700 rounded-lg">
+                <p className="text-gray-500">Creative upload interface coming soon...</p>
+              </div>
+            </div>
+          )}
+
+          {currentStep === 5 && (
+            <div className="text-center space-y-6">
+              <div>
+                <h2 className="text-4xl font-bold mb-4">Review Summary</h2>
+                <p className="text-gray-400 text-lg">Review your campaign details before launching.</p>
+              </div>
+
+              <div className="p-8 border border-gray-700 rounded-lg">
+                <p className="text-gray-500">Campaign summary coming soon...</p>
+              </div>
+            </div>
+          )}
         </div>
+      </main>
+
+      {/* Footer with Navigation */}
+      <footer className="flex items-center justify-between p-6 border-t border-gray-800">
+        <Button
+          variant="ghost"
+          onClick={handlePrevious}
+          disabled={currentStep === 1}
+          className="flex items-center gap-2 text-gray-400 hover:text-white"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Previous
+        </Button>
+
+        <div className="text-sm text-gray-400">
+          Step {currentStep} of {steps.length}
+        </div>
+
+        <Button
+          onClick={handleNext}
+          disabled={currentStep === steps.length || (currentStep === 1 && !campaignName.trim())}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+        >
+          {currentStep === steps.length ? "Launch Campaign" : "Save & Continue"}
+          <ArrowRight className="w-4 w-4" />
+        </Button>
+      </footer>
+
+      {/* Bottom Progress Bar */}
+      <div className="px-6 pb-4">
+        <Progress value={progress} className="w-full h-2" />
       </div>
     </div>
   )

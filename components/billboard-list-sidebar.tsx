@@ -19,6 +19,8 @@ interface BillboardListSidebarProps {
   selectedBillboards: Set<string>
   selectedBillboard: Billboard | null
   isAuthenticated: boolean
+  isCampaignMode?: boolean
+  onCampaignBack?: () => void
 }
 
 interface BillboardFilters {
@@ -39,6 +41,8 @@ export function BillboardListSidebar({
   selectedBillboards,
   selectedBillboard,
   isAuthenticated,
+  isCampaignMode = false,
+  onCampaignBack,
 }: BillboardListSidebarProps) {
   const [filters, setFilters] = useState<BillboardFilters>({
     category: "all",
@@ -51,7 +55,9 @@ export function BillboardListSidebar({
   const [filteredBillboards, setFilteredBillboards] = useState<Billboard[]>([])
 
   // Get unique categories from all billboards
-  const categories = Array.from(new Set(billboards.map((b) => b.category).filter((cat): cat is string => cat !== undefined && cat !== null)))
+  const categories = Array.from(
+    new Set(billboards.map((b) => b.category).filter((cat): cat is string => cat !== undefined && cat !== null)),
+  )
   const statuses = ["available", "occupied", "maintenance"]
 
   // Apply filters
@@ -96,7 +102,11 @@ export function BillboardListSidebar({
   }
 
   const handleBack = () => {
-    window.location.href = "/"
+    if (isCampaignMode && onCampaignBack) {
+      onCampaignBack()
+    } else {
+      window.location.href = "/"
+    }
   }
 
   return (
@@ -124,16 +134,20 @@ export function BillboardListSidebar({
         </Button>
       </div>
 
-      <div className="fixed top-4 left-4 bottom-4 w-96 bg-slate-800 z-[998] overflow-hidden flex flex-col rounded-2xl shadow-2xl border border-slate-700">
+      <div
+        className={`fixed top-4 left-4 w-96 bg-slate-800 z-[998] overflow-hidden flex flex-col rounded-2xl shadow-2xl border border-slate-700 ${isCampaignMode ? "bottom-24" : "bottom-4"}`}
+      >
         <div className="flex-1 overflow-y-auto billboard-sidebar-scroll">
           {/* Header - now scrollable */}
           <div className="p-6 border-b border-slate-700">
             <h2 className="text-2xl font-light text-white mb-2 mt-8">
-              Find some <span className="font-semibold">boards.</span>
+              {isCampaignMode ? "Select boards for your campaign." : "Find some"}{" "}
+              <span className="font-semibold">{isCampaignMode ? "" : "boards."}</span>
             </h2>
             <p className="text-sm text-slate-400">
-              There are well over {billboards.length} boards here. Try using filters to narrow the number of boards I'm
-              showing.
+              {isCampaignMode
+                ? `Choose from ${billboards.length} available boards for your campaign.`
+                : `There are well over ${billboards.length} boards here. Try using filters to narrow the number of boards I'm showing.`}
             </p>
           </div>
 
