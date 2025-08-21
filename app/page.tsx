@@ -26,7 +26,6 @@ export default function Home() {
 
     checkAuth()
 
-    // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase?.auth.onAuthStateChange((event, session) => {
@@ -52,16 +51,16 @@ export default function Home() {
       {/* <FAQsThree /> */}
       {/* <FooterSection /> */}
       <Footer leftLinks={[
-        // { href: "/terms", label: "Terms & policies" },
-        // { href: "/privacy-policy", label: "Privacy policy" },
+        { href: "/terms-and-conditions", label: "Terms & conditions" },
+        { href: "/privacy-policy", label: "Privacy policy" },
       ]}
               rightLinks={[
                 // { href: "/", label: "Careers" },
                 // { href: "/", label: "About" },
                 // { href: "/", label: "Help Center" },
-                // { href: "https://x.com/gunathek", label: "Twitter" },
-                // { href: "https://www.instagram.com/", label: "Instagram" },
-                // { href: "https://github.com/", label: "GitHub" }
+                { href: "https://x.com/smolboards", label: "Twitter" },
+                { href: "https://instagram.com/trysmolboards", label: "Instagram" },
+                { href: "https://linkedin.com/company/smolboards", label: "LinkedIn" }
               ]}
               copyrightText="Smolboards 2025. All Rights Reserved"
               barCount={23} />

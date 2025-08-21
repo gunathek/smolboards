@@ -136,7 +136,7 @@ export default function HeroSection() {
                                             asChild
                                             size="lg"
                                             className="rounded-xl px-5 text-base">
-                                            <Link href="https://forms.fillout.com/t/oyu4JEGtYsus" target="_blank">
+                                            <Link href="/auth">
                                                 <span className="text-nowrap">Get Started</span>
                                             </Link>
                                         </Button>
