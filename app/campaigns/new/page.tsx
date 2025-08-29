@@ -1,11 +1,13 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Switch } from "@/components/ui/switch"
-import { X, ArrowLeft, ArrowRight, ChevronDown, HelpCircle, Wand2 } from "lucide-react"
+import { X, ArrowLeft, ArrowRight, ChevronDown, HelpCircle, Wand2, AlertTriangle } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { DatePicker } from "@/components/date-picker"
@@ -180,6 +182,13 @@ export default function NewCampaignPage() {
   const [paceAmount, setPaceAmount] = useState("")
 
   const [activeSection, setActiveSection] = useState<"dates" | "schedule" | "budget">("dates")
+  const [uploadsExpanded, setUploadsExpanded] = useState(false)
+
+  const [showGalleryModal, setShowGalleryModal] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<
+    Array<{ id: string; name: string; type: string; url: string; size: number }>
+  >([])
+  const [isDragOver, setIsDragOver] = useState(false)
 
   useEffect(() => {
     const observerOptions = {
@@ -222,6 +231,48 @@ export default function NewCampaignPage() {
       return Number.parseFloat(paceAmount) || 0
     }
     return Number.parseFloat(budgetAmount) || 0
+  }
+
+  // Place this near other helpers (e.g., after getScoreAmount)
+  const formatWeeklySummary = (isAllDay: boolean, selectedTimeSlots: Set<string>) => {
+    // Expecting selectedTimeSlots entries like "Mon|03:00-06:00" or "Thu|15:00-18:00"
+    // If WeeklyScheduleGrid uses a different delimiter, we still defensively parse by splitting on non-alphas first.
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const
+    if (isAllDay) {
+      return days.map((d) => ({ day: d, label: "All day", variant: "all" as const }))
+    }
+
+    // Group ranges by day
+    const byDay = new Map<string, string[]>()
+    selectedTimeSlots.forEach((slot) => {
+      // Attempt to parse "Day|HH:MM-HH:MM" first
+      let day = ""
+      let range = ""
+      if (slot.includes("|")) {
+        const [d, r] = slot.split("|")
+        day = d
+        range = r
+      } else {
+        // Fallback: extract day prefix and last 11 chars like "03:00-06:00"
+        const match = slot.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat).*(\d{2}:\d{2}-\d{2}:\d{2})$/)
+        if (match) {
+          day = match[1]
+          range = match[2]
+        }
+      }
+      if (!day || !range) return
+      if (!byDay.has(day)) byDay.set(day, [])
+      byDay.get(day)!.push(range)
+    })
+
+    return days.map((d) => {
+      const ranges = byDay.get(d) || []
+      return {
+        day: d,
+        label: ranges.length ? ranges.join(", ") : "NONE",
+        variant: ranges.length ? "range" : "none",
+      }
+    })
   }
 
   const handleBudgetChange = (value: string) => {
@@ -346,6 +397,58 @@ export default function NewCampaignPage() {
   }
 
   const scheduleMetrics = calculateScheduleMetrics()
+
+  const handleFileUpload = (files: FileList) => {
+    const newFiles = Array.from(files)
+      .slice(0, 5)
+      .map((file) => ({
+        id: Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        type: file.type,
+        url: URL.createObjectURL(file),
+        size: file.size,
+      }))
+    setUploadedFiles((prev) => [...prev, ...newFiles])
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const files = e.dataTransfer.files
+    if (files.length > 0) {
+      handleFileUpload(files)
+    }
+  }
+
+  const [formData, setFormData] = useState({
+    campaignName: campaignName,
+    startDate: startDate?.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+    endDate: endDate?.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+    selectedBoards: selectedBoards,
+    budget: budgetAmount,
+  })
+
+  useEffect(() => {
+    setFormData({
+      campaignName: campaignName,
+      startDate: startDate?.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+      endDate: endDate?.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+      selectedBoards: selectedBoards,
+      budget: budgetAmount,
+    })
+  }, [campaignName, startDate, endDate, selectedBoards, budgetAmount])
+
+  const [generateProposal, setGenerateProposal] = useState(false)
 
   return (
     <div className="h-full bg-black text-white flex flex-col">
@@ -600,57 +703,84 @@ export default function NewCampaignPage() {
                                 </div>
 
                                 <div className="lg:col-span-2 flex justify-center lg:justify-end">
-                                  <div className="bg-gray-900/80 rounded-2xl p-8 w-full max-w-[240px] border border-gray-700/50 backdrop-blur-sm">
+                                  <div className="bg-gray-900/90 rounded-2xl p-8 w-full max-w-[280px] border border-gray-700/50 backdrop-blur-sm">
                                     <div className="text-center space-y-6">
                                       {(() => {
                                         const amount = getScoreAmount()
                                         const { score, label, color } = calculateBudgetScore(amount)
 
-                                        // Calculate position for the arc segment (0-180 degrees for semi-circle)
-                                        const angle = (score / 100) * 180 - 90 // Convert to SVG rotation (-90 to +90)
-                                        const radius = 45
-                                        const centerX = 60
-                                        const centerY = 60
+                                        // Convert score to percentage for progress bar
+                                        const progressPercentage = score
 
-                                        // Calculate arc segment endpoints
-                                        const startAngle = angle - 15 // 30-degree arc segment
-                                        const endAngle = angle + 15
+                                        // Define colors for different states
+                                        const getProgressColor = (label: string) => {
+                                          switch (label) {
+                                            case "INVALID":
+                                              return "#ef4444" // red-500
+                                            case "RESTRICTIVE":
+                                              return "#f59e0b" // amber-500
+                                            case "OKAY":
+                                              return "#3b82f6" // blue-500
+                                            case "GOOD":
+                                              return "#10b981" // emerald-500
+                                            case "EXCELLENT":
+                                              return "#22c55e" // green-500
+                                            case "EXCESSIVE":
+                                              return "#22c55e" // green-500
+                                            default:
+                                              return "#6b7280" // gray-500
+                                          }
+                                        }
 
-                                        const startX = centerX + radius * Math.cos((startAngle * Math.PI) / 180)
-                                        const startY = centerY + radius * Math.sin((startAngle * Math.PI) / 180)
-                                        const endX = centerX + radius * Math.cos((endAngle * Math.PI) / 180)
-                                        const endY = centerY + radius * Math.sin((endAngle * Math.PI) / 180)
+                                        const progressColor = getProgressColor(label)
+
+                                        // Calculate the path for the progress arc
+                                        const radius = 50
+                                        const strokeWidth = 8
+                                        const centerX = 70
+                                        const centerY = 70
+                                        const circumference = Math.PI * radius // Half circle circumference
+                                        const strokeDasharray = circumference
+                                        const strokeDashoffset =
+                                          circumference - (progressPercentage / 100) * circumference
 
                                         return (
                                           <>
-                                            <div className="relative w-32 h-16 mx-auto">
-                                              <svg className="w-32 h-32" viewBox="0 0 120 120">
-                                                {/* Background track - subtle gray arc */}
+                                            <div className="relative w-36 h-20 mx-auto">
+                                              <svg className="w-36 h-36" viewBox="0 0 140 140">
+                                                {/* Background track */}
                                                 <path
-                                                  d={`M 15 60 A 45 45 0 0 1 105 60`}
-                                                  stroke="currentColor"
-                                                  strokeWidth="3"
+                                                  d={`M 20 70 A 50 50 0 0 1 120 70`}
+                                                  stroke="#374151"
+                                                  strokeWidth={strokeWidth}
                                                   fill="none"
-                                                  className="text-gray-800/40"
-                                                />
-                                                {/* Active arc segment */}
-                                                <path
-                                                  d={`M ${startX} ${startY} A ${radius} ${radius} 0 0 1 ${endX} ${endY}`}
-                                                  stroke="currentColor"
-                                                  strokeWidth="6"
-                                                  fill="none"
-                                                  className={color.replace("text-", "text-")}
                                                   strokeLinecap="round"
+                                                  opacity="0.3"
+                                                />
+                                                {/* Progress arc */}
+                                                <path
+                                                  d={`M 20 70 A 50 50 0 0 1 120 70`}
+                                                  stroke={progressColor}
+                                                  strokeWidth={strokeWidth}
+                                                  fill="none"
+                                                  strokeLinecap="round"
+                                                  strokeDasharray={strokeDasharray}
+                                                  strokeDashoffset={strokeDashoffset}
                                                   style={{
-                                                    transition: "all 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
-                                                    filter: "drop-shadow(0 0 8px currentColor)",
+                                                    transition: "stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)",
+                                                    filter: `drop-shadow(0 0 12px ${progressColor}40)`,
                                                   }}
                                                 />
                                               </svg>
                                             </div>
                                             <div className="space-y-3">
-                                              <div className={`text-xl font-bold ${color} tracking-wider`}>{label}</div>
-                                              <div className="text-sm text-gray-500 uppercase tracking-widest font-semibold">
+                                              <div
+                                                className="text-2xl font-bold tracking-wider"
+                                                style={{ color: progressColor }}
+                                              >
+                                                {label}
+                                              </div>
+                                              <div className="text-sm text-gray-400 uppercase tracking-widest font-semibold">
                                                 BUDGET SCORE
                                               </div>
                                             </div>
@@ -811,56 +941,84 @@ export default function NewCampaignPage() {
                               </div>
 
                               <div className="lg:col-span-2 flex justify-center lg:justify-end">
-                                <div className="bg-gray-900/80 rounded-2xl p-8 w-full max-w-[240px] border border-gray-700/50 backdrop-blur-sm">
+                                <div className="bg-gray-900/90 rounded-2xl p-8 w-full max-w-[280px] border border-gray-700/50 backdrop-blur-sm">
                                   <div className="text-center space-y-6">
                                     {(() => {
                                       const amount = Number.parseFloat(budgetAmount) || 0
                                       const { score, label, color } = calculateBudgetScore(amount)
 
-                                      // Calculate position for the arc segment (0-180 degrees for semi-circle)
-                                      const angle = (score / 100) * 180 - 90 // Convert to SVG rotation (-90 to +90)
-                                      const radius = 45
-                                      const centerX = 60
-                                      const centerY = 60
+                                      // Convert score to percentage for progress bar
+                                      const progressPercentage = score
 
-                                      // Calculate arc segment endpoints
-                                      const startAngle = angle - 15 // 30-degree arc segment
-                                      const endAngle = angle + 15
+                                      // Define colors for different states
+                                      const getProgressColor = (label: string) => {
+                                        switch (label) {
+                                          case "INVALID":
+                                            return "#ef4444" // red-500
+                                          case "RESTRICTIVE":
+                                            return "#f59e0b" // amber-500
+                                          case "OKAY":
+                                            return "#3b82f6" // blue-500
+                                          case "GOOD":
+                                            return "#10b981" // emerald-500
+                                          case "EXCELLENT":
+                                            return "#22c55e" // green-500
+                                          case "EXCESSIVE":
+                                            return "#22c55e" // green-500
+                                          default:
+                                            return "#6b7280" // gray-500
+                                        }
+                                      }
 
-                                      const startX = centerX + radius * Math.cos((startAngle * Math.PI) / 180)
-                                      const startY = centerY + radius * Math.sin((startAngle * Math.PI) / 180)
-                                      const endX = centerX + radius * Math.cos((endAngle * Math.PI) / 180)
-                                      const endY = centerY + radius * Math.sin((endAngle * Math.PI) / 180)
+                                      const progressColor = getProgressColor(label)
+
+                                      // Calculate the path for the progress arc
+                                      const radius = 50
+                                      const strokeWidth = 8
+                                      const centerX = 70
+                                      const centerY = 70
+                                      const circumference = Math.PI * radius // Half circle circumference
+                                      const strokeDasharray = circumference
+                                      const strokeDashoffset =
+                                        circumference - (progressPercentage / 100) * circumference
 
                                       return (
                                         <>
-                                          <div className="relative w-32 h-16 mx-auto">
-                                            <svg className="w-32 h-32" viewBox="0 0 120 120">
-                                              {/* Background track - subtle gray arc */}
+                                          <div className="relative w-36 h-20 mx-auto">
+                                            <svg className="w-36 h-36" viewBox="0 0 140 140">
+                                              {/* Background track */}
                                               <path
-                                                d={`M 15 60 A 45 45 0 0 1 105 60`}
-                                                stroke="currentColor"
-                                                strokeWidth="3"
+                                                d={`M 20 70 A 50 50 0 0 1 120 70`}
+                                                stroke="#374151"
+                                                strokeWidth={strokeWidth}
                                                 fill="none"
-                                                className="text-gray-800/40"
-                                              />
-                                              {/* Active arc segment */}
-                                              <path
-                                                d={`M ${startX} ${startY} A ${radius} ${radius} 0 0 1 ${endX} ${endY}`}
-                                                stroke="currentColor"
-                                                strokeWidth="6"
-                                                fill="none"
-                                                className={color.replace("text-", "text-")}
                                                 strokeLinecap="round"
+                                                opacity="0.3"
+                                              />
+                                              {/* Progress arc */}
+                                              <path
+                                                d={`M 20 70 A 50 50 0 0 1 120 70`}
+                                                stroke={progressColor}
+                                                strokeWidth={strokeWidth}
+                                                fill="none"
+                                                strokeLinecap="round"
+                                                strokeDasharray={strokeDasharray}
+                                                strokeDashoffset={strokeDashoffset}
                                                 style={{
-                                                  transition: "all 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
+                                                  transition: "stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)",
+                                                  filter: `drop-shadow(0 0 12px ${progressColor}40)`,
                                                 }}
                                               />
                                             </svg>
                                           </div>
                                           <div className="space-y-3">
-                                            <div className={`text-xl font-bold ${color} tracking-wider`}>{label}</div>
-                                            <div className="text-sm text-gray-500 uppercase tracking-widest font-semibold">
+                                            <div
+                                              className="text-2xl font-bold tracking-wider"
+                                              style={{ color: progressColor }}
+                                            >
+                                              {label}
+                                            </div>
+                                            <div className="text-sm text-gray-400 uppercase tracking-widest font-semibold">
                                               BUDGET SCORE
                                             </div>
                                           </div>
@@ -902,30 +1060,636 @@ export default function NewCampaignPage() {
         )}
 
         {currentStep === 4 && (
-          <div className="flex-1 flex items-center justify-center p-6">
-            <div className="max-w-2xl w-full text-center space-y-6">
-              <div>
-                <h2 className="text-4xl font-bold mb-4">Upload Creatives</h2>
-                <p className="text-gray-400 text-lg">Add your creative assets for the campaign.</p>
-              </div>
+          <div className="flex-1 flex flex-col p-6">
+            <div className="max-w-7xl w-full mx-auto space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Header, Description, and Your Uploads */}
+                <div className="space-y-6">
+                  <div className="mb-8">
+                    <h2 className="text-4xl font-bold mb-4">
+                      Upload <span className="text-green-400">pretty</span> artworks.
+                    </h2>
+                    <p className="text-gray-400 text-lg">
+                      <span className="text-blue-400">You can do this later.</span> You'll be able to add artworks later
+                      on, but if you've got some prepared already - upload them here.
+                    </p>
+                  </div>
 
-              <div className="p-8 border border-gray-700 rounded-lg">
-                <p className="text-gray-500">Creative upload interface coming soon...</p>
+                  {/* Your Uploads - Always Expanded */}
+                  <div className="bg-gray-800/50 rounded-lg border border-gray-700">
+                    <div className="w-full p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                        </div>
+                        <span className="font-medium text-white">Your Uploads</span>
+                      </div>
+                      <svg
+                        className="w-5 h-5 text-gray-400 rotate-180"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+
+                    <div className="p-4 border-t border-gray-700">
+                      {uploadedFiles.length > 0 ? (
+                        <div className="space-y-3">
+                          {uploadedFiles.map((file) => (
+                            <div key={file.id} className="bg-gray-700/50 rounded-lg p-4 flex items-center gap-3">
+                              <div className="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center">
+                                {file.type.startsWith("image/") ? (
+                                  <img
+                                    src={file.url || "/placeholder.svg"}
+                                    alt={file.name}
+                                    className="w-full h-full object-cover rounded-lg"
+                                  />
+                                ) : (
+                                  <svg
+                                    className="w-6 h-6 text-gray-400"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2v8a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-medium text-white text-sm">{file.name}</h4>
+                                <p className="text-xs text-gray-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                              </div>
+                              <button
+                                onClick={() => setUploadedFiles((prev) => prev.filter((f) => f.id !== file.id))}
+                                className="text-gray-400 hover:text-red-400 transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="bg-gray-700/50 rounded-lg p-6 text-center">
+                          <div className="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                            <svg
+                              className="w-6 h-6 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                          </div>
+                          <h3 className="font-medium text-white mb-1">Ghostly feels. No artworks here.</h3>
+                          <p className="text-sm text-gray-400">
+                            Upload some artworks using the bulk uploader, or by clicking the plus button on the
+                            individual resolutions you see.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column - Upload Options Only */}
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    {/* Add from Gallery */}
+                    <button
+                      onClick={() => setShowGalleryModal(true)}
+                      className="w-full bg-gray-800/50 border border-gray-700 rounded-lg p-6 hover:bg-gray-700/30 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white">Add from</h3>
+                          <h3 className="font-medium text-white">Gallery</h3>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-400">Select multiple previously-uploaded artworks.</p>
+                    </button>
+
+                    {/* Bulk Uploader */}
+                    <div
+                      className={`bg-gray-800/50 border-2 border-dashed rounded-lg p-8 transition-colors cursor-pointer ${
+                        isDragOver ? "border-green-500 bg-green-500/10" : "border-gray-600 hover:border-gray-500"
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => document.getElementById("file-upload")?.click()}
+                    >
+                      <input
+                        id="file-upload"
+                        type="file"
+                        multiple
+                        accept="image/*,video/*"
+                        className="hidden"
+                        onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                      />
+                      <div className="text-center">
+                        <div className="w-8 h-8 bg-gray-600 rounded flex items-center justify-center mx-auto mb-3">
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
+                          </svg>
+                        </div>
+                        <h3 className="font-medium text-white mb-1">Bulk Uploader.</h3>
+                        <p className="text-sm text-gray-400 mb-2">
+                          Upload up to 5 files by clicking (or dragging) here.
+                        </p>
+                        <p className="text-xs text-gray-500">Max. File Size: 7 MB</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+
+            {showGalleryModal && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                <div className="bg-gray-900 rounded-lg w-full max-w-6xl h-[80vh] flex flex-col">
+                  {/* Modal Header */}
+                  <div className="flex items-center justify-between p-6 border-b border-gray-700">
+                    <h2 className="text-2xl font-bold text-white">Pick some artworks.</h2>
+                    <button
+                      onClick={() => setShowGalleryModal(false)}
+                      className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Modal Content */}
+                  <div className="flex-1 flex">
+                    {/* Left Section - Gallery */}
+                    <div className="flex-1 p-6 border-r border-gray-700">
+                      <div className="mb-4">
+                        <h3 className="text-lg font-medium text-white mb-2">Artworks in your gallery.</h3>
+                        <p className="text-sm text-gray-400 mb-4">
+                          FYI - only showing artworks that match the required spec.
+                        </p>
+
+                        {/* Search Bar */}
+                        <div className="relative">
+                          <svg
+                            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                          </svg>
+                          <input
+                            type="text"
+                            placeholder="Find a file by name...if you want."
+                            className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Gallery Content */}
+                      <div className="flex-1 flex items-center justify-center">
+                        <div className="bg-white rounded-lg p-8 text-center max-w-sm">
+                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <svg
+                              className="w-6 h-6 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                          </div>
+                          <h4 className="font-medium text-gray-900 mb-1">Ghostly feels.</h4>
+                          <p className="text-gray-900">
+                            There's <strong>no artwork</strong> here.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Pagination */}
+                      <div className="flex items-center justify-center gap-4 mt-6">
+                        <button className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-gray-400">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <span className="text-sm text-gray-400">PAGE 1 OF 0</span>
+                        <button className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-gray-400">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Right Section - Required Specs */}
+                    <div className="w-80 p-6">
+                      <div className="mb-4">
+                        <h3 className="text-lg font-medium text-white mb-2">Required specs.</h3>
+                        <p className="text-sm text-gray-400 mb-4">
+                          Pick some artworks from your gallery that match these specs below.
+                        </p>
+
+                        {/* Filter Buttons */}
+                        <div className="flex gap-2 mb-6">
+                          <button className="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm font-medium">
+                            SHOW ALL
+                          </button>
+                          <button className="px-4 py-2 bg-gray-800 text-gray-400 rounded-lg text-sm">
+                            MISSING ONLY
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Spec Cards */}
+                      <div className="space-y-4">
+                        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-white">1080 x 1920 Portrait.</span>
+                            <div className="w-4 h-4 border-2 border-green-500 rounded-full flex items-center justify-center">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-400">6 - 30 seconds</p>
+                          <div className="flex gap-1 mt-2">
+                            <span className="px-2 py-1 bg-gray-700 text-xs text-white rounded">STATIC</span>
+                            <span className="px-2 py-1 bg-gray-700 text-xs text-white rounded">VIDEO</span>
+                            <span className="px-2 py-1 bg-yellow-500 text-xs text-black rounded">NO AUDIO</span>
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-white">1080 x 1920 Portrait.</span>
+                            <div className="w-4 h-4 border-2 border-green-500 rounded-full flex items-center justify-center">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-400">6 seconds</p>
+                          <div className="flex gap-1 mt-2">
+                            <span className="px-2 py-1 bg-gray-700 text-xs text-white rounded">STATIC</span>
+                            <span className="px-2 py-1 bg-gray-700 text-xs text-white rounded">VIDEO</span>
+                            <span className="px-2 py-1 bg-yellow-500 text-xs text-black rounded">NO AUDIO</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="flex items-center justify-between p-6 border-t border-gray-700">
+                    <button
+                      onClick={() => setShowGalleryModal(false)}
+                      className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    >
+                      CLOSE
+                    </button>
+                    <button className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                      ADD TO CAMPAIGN
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {currentStep === 5 && (
-          <div className="flex-1 flex items-center justify-center p-6">
-            <div className="max-w-2xl w-full text-center space-y-6">
-              <div>
-                <h2 className="text-4xl font-bold mb-4">Review Summary</h2>
-                <p className="text-gray-400 text-lg">Review your campaign details before launching.</p>
-              </div>
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="max-w-4xl mx-auto space-y-8">
+                {/* Header */}
+                <div className="mb-12">
+                  <h1 className="text-4xl font-bold text-white mb-2">The Summary.</h1>
+                </div>
 
-              <div className="p-8 border border-gray-700 rounded-lg">
-                <p className="text-gray-500">Campaign summary coming soon...</p>
+                {/* Generate Proposal Toggle */}
+
+                <div className="border-t border-gray-700/50"></div>
+
+                {/* Campaign Name */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white mb-4">Campaign Name</h2>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-3xl font-bold text-white">{formData.campaignName || "Untitled Campaign"}</div>
+                    <button
+                      onClick={() => setCurrentStep(1)}
+                      className="flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-medium"
+                    >
+                      EDIT NAME
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-700/50"></div>
+
+                {/* Campaign Ownership & Credits */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white mb-4">Credits</h2>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">CREDITS AVAILABLE</div>
+                    <div className="text-xl text-white mb-2">
+                      $0.00 <span className="text-sm text-gray-400">USD</span>
+                    </div>
+                    <button className="flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-medium">
+                      TOP UP
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-700/50"></div>
+
+                {/* Dates & Schedule */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white mb-4">Dates & Schedule</h2>
+                  </div>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-3 gap-6">
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">START DATE</div>
+                        <div className="text-xl text-white mb-2">{formData.startDate || "20 Aug 25"}</div>
+                        <button
+                          onClick={() => setCurrentStep(3)}
+                          className="flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-medium"
+                        >
+                          CHANGE
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">END DATE</div>
+                        <div className="text-xl text-white">{formData.endDate || "Not Set"}</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-white mb-1">{hasEndDate ? "Fixed" : "On-going"}</div>
+                        <div className="text-sm text-gray-400">
+                          {hasEndDate
+                            ? "Runs between your start and end dates."
+                            : "Will run continuously from your start date, or until you stop it."}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Weekly Schedule */}
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-7 gap-2">
+                        {formatWeeklySummary(isAllDay, selectedTimeSlots).map(({ day, label, variant }) => (
+                          <div key={day} className="text-center">
+                            <div className="text-sm text-gray-400 mb-2">{day}</div>
+                            <div
+                              className={[
+                                "px-3 py-2 rounded-full text-xs font-medium",
+                                variant === "all"
+                                  ? "bg-green-600 text-white"
+                                  : variant === "range"
+                                    ? "bg-gray-700 text-white"
+                                    : "bg-yellow-500 text-gray-900",
+                              ].join(" ")}
+                            >
+                              {label === "All day"
+                                ? "All day"
+                                : label === "NONE"
+                                  ? "NONE"
+                                  : // convert 24h "HH:MM-HH:MM" to "hAM - hPM"
+                                    label
+                                      .split(", ")
+                                      .map((r) => {
+                                        const [a, b] = r.split("-")
+                                        const to12h = (t: string) => {
+                                          const [H, M] = t.split(":").map(Number)
+                                          const S = H >= 12 ? "PM" : "AM"
+                                          const h = H % 12 === 0 ? 12 : H % 12
+                                          return `${h}${M ? ":" + String(M).padStart(2, "0") : ""}${S}`
+                                        }
+                                        return `${to12h(a)} - ${to12h(b)}`
+                                      })
+                                      .join(", ")}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => setCurrentStep(3)}
+                        className="flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-medium"
+                      >
+                        CHANGE
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-700/50"></div>
+
+                {/* Budget & Spend Limits */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white mb-4">Budget & Spend Limits</h2>
+                  </div>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">TOTAL BUDGET</div>
+                        <div className="text-xl text-white mb-2">{formData.budget || "Not set"}</div>
+                        <button className="flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-medium">
+                          CHANGE
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">BID CAPPING</div>
+                        <div className="text-xl text-white mb-2">Automatic</div>
+                        <button className="flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-medium">
+                          CHANGE
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-400 mb-1">SPEND PACING</div>
+                      <div className="text-xl text-white mb-2">Hourly ($34.00/hr)</div>
+                      <button className="flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-medium">
+                        CHANGE
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-700/50"></div>
+
+                {/* Boards in this Campaign */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white mb-4">Boards in this Campaign</h2>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <div className="text-sm text-gray-400 mb-1">BOARDS SELECTED</div>
+                      <div className="text-4xl font-bold text-white mb-2">{formData.selectedBoards?.length || 2}</div>
+                      <button className="flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-medium">
+                        CHANGE
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-400 mb-1">SUGGESTED BUDGET</div>
+                      <div className="text-2xl font-bold text-white mb-1">
+                        $0.64 <span className="text-sm text-gray-400">$/hr</span>
+                      </div>
+                      <button className="flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-medium">
+                        REVIEW
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-700/50"></div>
+
+                {/* Artworks Required */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white mb-4">Artworks Required</h2>
+                  </div>
+                  <div className="space-y-4">
+                    {/* Warning */}
+                    <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5" />
+                        <div>
+                          <div className="font-semibold text-yellow-500 mb-1">
+                            You haven't submitted enough artworks.
+                          </div>
+                          <div className="text-sm text-yellow-200">
+                            Your ads cover only <span className="font-semibold">0%</span> of the resolutions in your
+                            selected boards (and regions). I recommend uploading more artworks so that you can increase
+                            this coverage to 80% or more.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">UNIQUE RESOLUTIONS</div>
+                        <div className="text-4xl font-bold text-white">1</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-400 mb-1">ARTWORKS SUPPLIED</div>
+                        <div className="text-4xl font-bold text-white mb-2">{uploadedFiles.length}</div>
+                        <button className="flex items-center gap-2 text-green-400 hover:text-green-300 text-sm font-medium">
+                          CHANGE
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-700/50"></div>
+
+                {/* Projected Results */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-white mb-4">Projected Results</h2>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                        <div className="text-2xl font-bold text-white mb-1">~120</div>
+                        <div className="text-sm text-gray-400 flex items-center gap-1">
+                          AD PLAYS | PER DAY
+                          <HelpCircle className="w-3 h-3" />
+                        </div>
+                      </div>
+                      <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                        <div className="text-2xl font-bold text-white mb-1">140 - 216</div>
+                        <div className="text-sm text-gray-400 flex items-center gap-1">
+                          TOTAL AUDIENCE | PER DAY
+                          <HelpCircle className="w-3 h-3" />
+                        </div>
+                      </div>
+                      <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                        <div className="text-2xl font-bold text-white mb-1">
+                          24.0 <span className="text-lg">mins.</span>
+                        </div>
+                        <div className="text-sm text-gray-400 flex items-center gap-1">
+                          SCREEN TIME | PER DAY
+                          <HelpCircle className="w-3 h-3" />
+                        </div>
+                      </div>
+                      <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                        <div className="text-2xl font-bold text-green-400 mb-1">$7.63</div>
+                        <div className="text-sm text-gray-400 flex items-center gap-1">
+                          EXPECTED SPEND | PER DAY
+                          <HelpCircle className="w-3 h-3" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                      <span>Ongoing campaign - Daily figures shown here.</span>
+                      <HelpCircle className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -949,15 +1713,20 @@ export default function NewCampaignPage() {
         </div>
 
         <Button
-          onClick={handleNext}
+          onClick={() => {
+            if (currentStep === steps.length) {
+              router.push("/campaigns")
+            } else {
+              handleNext()
+            }
+          }}
           disabled={
-            currentStep === steps.length ||
-            (currentStep === 1 && !campaignName.trim()) ||
-            (currentStep === 3 && !isBudgetValid())
+            // keep validations for steps 1 and 3, but never disable on the last step
+            (currentStep === 1 && !campaignName.trim()) || (currentStep === 3 && !isBudgetValid())
           }
           className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
         >
-          {currentStep === steps.length ? "Launch Campaign" : "Save & Continue"}
+          Save & Continue
           <ArrowRight className="w-4 h-4" />
         </Button>
       </footer>

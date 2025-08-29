@@ -8,6 +8,9 @@ import StatsSection from "@/components/stats"
 import FeaturesSection from "@/components/features-8"
 import Footer from "@/components/ui/animated-footer"
 import AnimatedGradientBackground from "@/components/ui/animated-gradient-background"
+import LogoCloud from "@/components/logo-cloud"
+import Pricing from "@/components/pricing"
+import FAQsThree from "@/components/faqs-3"
 
 export default function Home() {
   const router = useRouter()
